@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_summary, field, textarea %}
+{% block title %}Jauna mijiedarbība{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/organizacijas/{{ org.id }}">{{ org.name }}</a></p>
+<h1>Jauna mijiedarbība</h1>
+{{ error_summary(errors) }}
+<form method="post" novalidate class="narrow">
+  <fieldset class="field">
+    <legend>Veids <span class="req">(obligāts)</span></legend>
+    {% if errors.kind %}<p class="field-error" id="f-kind-error">{{ errors.kind }}</p>{% endif %}
+    <div class="choices">
+    {% for value, label in KINDS.items() %}
+      <div class="check"><input type="radio" id="f-kind{% if not loop.first %}-{{ value }}{% endif %}" name="kind" value="{{ value }}"{% if values.get('kind') == value %} checked{% endif %}><label for="f-kind{% if not loop.first %}-{{ value }}{% endif %}">{{ label }}</label></div>
+    {% endfor %}
+    </div>
+  </fieldset>
+  {{ field("date", "Datums", values, errors, type="date") }}
+  {% if contacts %}
+  <fieldset class="field">
+    <legend>Dalībnieki no organizācijas</legend>
+    <div class="choices">
+    {% for c in contacts %}
+      <div class="check"><input type="checkbox" id="f-participant-{{ c.id }}" name="participants" value="{{ c.id }}"{% if c.id | string in selected %} checked{% endif %}><label for="f-participant-{{ c.id }}">{{ c.name }}</label></div>
+    {% endfor %}
+    </div>
+  </fieldset>
+  {% endif %}
+
+  <section class="ai-box" aria-labelledby="ai-title">
+    <h2 id="ai-title">Kopsavilkums ar MI</h2>
+    <p class="hint">Ieraksti sarunas piezīmes brīvā tekstā. MI piedāvās kopsavilkumu līdz 3 teikumiem un nākamo soli. Piezīmes netiek saglabātas; saglabā tikai tavu apstiprināto kopsavilkumu.</p>
+    {{ textarea("notes", "Piezīmes", values, errors, required=False, rows=5) }}
+    <button type="submit" name="action" value="generate" class="secondary">Ģenerēt kopsavilkumu</button>
+  </section>
+
+  {% if suggestion %}
+  <div class="notice ai-notice" role="status">
+    <p><strong>Ģenerēts ar MI</strong> ({{ suggestion.source }}). Pārbaudi un izlabo tekstu pirms apstiprināšanas.</p>
+    {% if suggestion.notice %}<p>{{ suggestion.notice }}</p>{% endif %}
+  </div>
+  {% endif %}
+  <input type="hidden" name="ai_generated" value="{{ values.get('ai_generated', '') }}">
+  {{ textarea("summary", "Kopsavilkums", values, errors, hint="Ģenerēts ar MI. Pārbaudi un labo." if values.get('ai_generated') else "", autofocus=suggestion is not none) }}
+  {{ textarea("next_step", "Nākamais solis", values, errors, required=False, rows=2, hint="Ģenerēts ar MI. Pārbaudi un labo." if values.get('ai_generated') else "") }}
+  <div class="actions">
+    <button type="submit" name="action" value="save">{% if values.get('ai_generated') %}Apstiprināt un saglabāt{% else %}Saglabāt mijiedarbību{% endif %}</button>
+    <a href="/organizacijas/{{ org.id }}#mijiedarbibas">Atcelt</a>
+  </div>
+</form>
+{% endblock %}

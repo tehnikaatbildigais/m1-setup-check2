@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_summary %}
+{% block title %}Sākums{% endblock %}
+{% block content %}
+<h1>Kas strādā šodien?</h1>
+<p class="lead">Mācību režīmā pieteikšanās nav. Izvēlies darbinieku: darbinieka loma nosaka, ko var redzēt un mainīt.</p>
+{{ error_summary(errors) }}
+<form method="post" action="/sakums" novalidate class="narrow">
+  <div class="field">
+    <label for="f-employee_id">Darbinieks <span class="req">(obligāts)</span></label>
+    {% if errors.employee_id %}<p class="field-error" id="f-employee_id-error">{{ errors.employee_id }}</p>{% endif %}
+    <select id="f-employee_id" name="employee_id" required{% if errors.employee_id %} aria-invalid="true" aria-describedby="f-employee_id-error"{% endif %}>
+      <option value="">Izvēlies</option>
+      {% for role, label in [("darbinieks", "Darbinieki"), ("vaditajs", "Vadītāji"), ("administrators", "Administratori")] %}
+      <optgroup label="{{ label }}">
+        {% for e in employees if e.role == role %}
+        <option value="{{ e.id }}"{% if selected == e.id | string %} selected{% endif %}>{{ e.name }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit">Sākt darbu</button>
+</form>
+<section class="roles" aria-labelledby="roles-title">
+  <h2 id="roles-title">Lomas</h2>
+  <dl>
+    <dt>Darbinieks</dt><dd>Redz visas organizācijas, maina tikai tās, kurās ir atbildīgais.</dd>
+    <dt>Vadītājs</dt><dd>Maina visas organizācijas un redz pārskatu.</dd>
+    <dt>Administrators</dt><dd>Kā vadītājs, kā arī maina lomas, dzēš kontaktpersonas un skata piekļuves žurnālu.</dd>
+  </dl>
+</section>
+{% endblock %}

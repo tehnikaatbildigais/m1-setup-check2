@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Mani uzdevumi šodien{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Mani uzdevumi šodien</h1>
+  <a class="button" href="/uzdevumi/jauns">Pievienot uzdevumu</a>
+</div>
+{% if request.query_params.get('izpildits') %}<p class="notice" role="status">Uzdevums atzīmēts kā izpildīts.</p>{% endif %}
+{% if request.query_params.get('pievienots') %}<p class="notice" role="status">Uzdevums pievienots.</p>{% endif %}
+{% if tasks %}
+{% set return_to = "/uzdevumi" %}{% include "_task_list.html" %}
+{% else %}
+<p class="empty">Šodienai uzdevumu nav. <a href="/uzdevumi/jauns">Pievienot uzdevumu</a></p>
+{% endif %}
+{% if upcoming %}<p class="hint">Vēl {{ upcoming }} uzdevumi ar vēlāku termiņu.</p>{% endif %}
+{% endblock %}

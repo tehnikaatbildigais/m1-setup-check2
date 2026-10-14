@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_summary, field, select %}
+{% block title %}{% if contact %}Labot kontaktpersonu{% else %}Jauna kontaktpersona{% endif %}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/organizacijas/{{ org.id }}">{{ org.name }}</a></p>
+<h1>{% if contact %}Labot kontaktpersonu{% else %}Jauna kontaktpersona{% endif %}</h1>
+<p class="lead">Ievadi tikai sadarbībai vajadzīgos datus. Kontakts tiek glabāts 2 gadus pēc pēdējās saziņas.</p>
+{{ error_summary(errors) }}
+<form method="post" novalidate class="narrow">
+  {{ field("name", "Vārds, uzvārds", values, errors, autocomplete="off") }}
+  {{ field("position", "Amats", values, errors) }}
+  {{ field("email", "E-pasts", values, errors, type="email", hint="Darba e-pasts, piemēram, vards@example.com.") }}
+  {{ field("phone", "Tālrunis", values, errors, type="tel", hint="8 cipari, var sākt ar +371.", inputmode="tel") }}
+  <div class="field">
+    <label for="f-basis">Saziņas pamats <span class="req">(obligāts)</span></label>
+    <p class="hint" id="f-basis-hint">Datu apstrādes tiesiskais pamats (VDAR 6. pants).</p>
+    {% if errors.basis %}<p class="field-error" id="f-basis-error">{{ errors.basis }}</p>{% endif %}
+    <select id="f-basis" name="basis" required aria-describedby="f-basis-hint{% if errors.basis %} f-basis-error{% endif %}"{% if errors.basis %} aria-invalid="true"{% endif %}>
+      <option value="">Izvēlies</option>
+      {% for b in bases %}<option{% if values.get('basis') == b %} selected{% endif %}>{{ b }}</option>{% endfor %}
+    </select>
+  </div>
+  {{ field("basis_date", "Saziņas pamata datums", values, errors, type="date") }}
+  <div class="actions">
+    <button type="submit">{% if contact %}Saglabāt izmaiņas{% else %}Pievienot kontaktpersonu{% endif %}</button>
+    <a href="/organizacijas/{{ org.id }}#kontakti">Atcelt</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import late_tag, status_tag %}
+{% block title %}{{ row.title }}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/pieprasijumi">Pieprasījumi</a></p>
+<h1>{{ row.title }}</h1>
+<dl class="facts">
+  <div><dt>Organizācija</dt><dd><a href="/organizacijas/{{ row.organization_id }}">{{ row.org_name }}</a></dd></div>
+  <div><dt>Statuss</dt><dd>{{ status_tag(row.status) }}{% if overdue %} {{ late_tag() }}{% endif %}</dd></div>
+  <div><dt>Saņemts</dt><dd>{{ row.created_on | lvdate }}</dd></div>
+  <div><dt>Termiņš</dt><dd>{{ row.deadline | lvdate }}</dd></div>
+  {% if row.answered_on %}<div><dt>Atbildēts</dt><dd>{{ row.answered_on | lvdate }}</dd></div>{% endif %}
+</dl>
+{% if row.description %}<p>{{ row.description }}</p>{% endif %}
+{% if next_status and can_edit %}
+<form method="post" action="/pieprasijumi/{{ row.id }}/statuss" class="actions">
+  <input type="hidden" name="status" value="{{ next_status }}">
+  <button type="submit">{% if next_status == 'darba' %}Sākt darbu{% else %}Atzīmēt kā atbildētu{% endif %}</button>
+</form>
+{% elif next_status %}<p class="readonly">Statusu var mainīt organizācijas atbildīgais darbinieks vai vadītājs.</p>{% endif %}
+<section aria-labelledby="req-tasks">
+  <div class="section-head">
+    <h2 id="req-tasks">Uzdevumi</h2>
+    {% if row.status != 'atbildets' %}<a class="button secondary" href="/uzdevumi/jauns?pieprasijums={{ row.id }}">Pievienot uzdevumu</a>{% endif %}
+  </div>
+  {% if tasks %}
+  <ul class="plain">{% for t in tasks %}<li>{{ t.title }}, {{ t.assignee }}, termiņš {{ t.due | lvdate }}{% if t.done_on %} <span class="tag tag-atbildets">Izpildīts</span>{% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="empty">Uzdevumu nav.</p>{% endif %}
+</section>
+{% endblock %}

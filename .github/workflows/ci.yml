@@ -9,4 +9,6 @@ jobs:
       - name: Prepare template self-check
         if: github.repository == 'mleitass/m1-setup-check'
         run: echo 'Template repository self-check; not participant evidence.' > setup/claude-answer.md
+      - name: Install app dependencies (CR-5)
+        run: pip install -r requirements.txt
       - run: make verify-setup

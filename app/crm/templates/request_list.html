@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import late_tag, status_tag %}
+{% block title %}Pieprasījumi{% endblock %}
+{% block content %}
+<h1>Pieprasījumi</h1>
+<p class="lead">Jaunu pieprasījumu reģistrē organizācijas kartītē. Termiņš ir 30 dienas no saņemšanas.</p>
+<form method="get" action="/pieprasijumi" class="filters">
+  <div class="field inline">
+    <label for="f-statuss">Statuss</label>
+    <select id="f-statuss" name="statuss">
+      <option value="">Visi</option>
+      {% for value, label in STATUSES.items() %}<option value="{{ value }}"{% if statuss == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="check">
+    <input type="checkbox" id="f-kavetie" name="kavetie" value="1"{% if kavetie %} checked{% endif %}>
+    <label for="f-kavetie">Tikai kavētie</label>
+  </div>
+  <button type="submit" class="secondary">Atlasīt</button>
+</form>
+{% if rows %}
+<div class="table-wrap" role="region" aria-labelledby="req-caption" tabindex="0">
+<table>
+  <caption id="req-caption">{{ rows | length }} pieprasījumi, sakārtoti pēc termiņa</caption>
+  <thead><tr><th scope="col">Temats</th><th scope="col">Organizācija</th><th scope="col">Statuss</th><th scope="col">Termiņš</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <th scope="row"><a href="/pieprasijumi/{{ r.id }}">{{ r.title }}</a></th>
+      <td>{{ r.org_name }}</td>
+      <td>{{ status_tag(r.status) }}</td>
+      <td>{{ r.deadline | lvdate }}{% if r.id in overdue %} {{ late_tag() }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="empty">Atlasei atbilstošu pieprasījumu nav.</p>{% endif %}
+{% endblock %}

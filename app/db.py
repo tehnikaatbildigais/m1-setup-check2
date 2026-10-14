@@ -1,4 +1,4 @@
-"""SQLite glabātuve lietotājiem, sesijām un paroles atjaunošanas marķieriem (CR-4)."""
+"""SQLite glabātuve. CR-4 lietotāju shēma ir noklusējums; CR-5 CRM nodod savu shēmu."""
 
 from __future__ import annotations
 
@@ -32,11 +32,11 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 
 class Database:
-    def __init__(self, path: Path | str) -> None:
+    def __init__(self, path: Path | str, schema: str = SCHEMA) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
-            conn.executescript(SCHEMA)
+            conn.executescript(schema)
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:

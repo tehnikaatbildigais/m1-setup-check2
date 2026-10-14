@@ -1,0 +1,7 @@
+<nav class="sub-nav" aria-label="Administrēšana">
+  <ul>
+    {% for href, label in [("/admin/lomas", "Lomas"), ("/admin/glabasana", "Glabāšanas termiņš"), ("/admin/zurnals", "Piekļuves žurnāls")] %}
+    <li><a href="{{ href }}"{% if path == href %} aria-current="page"{% endif %}>{{ label }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>

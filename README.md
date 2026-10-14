@@ -49,6 +49,26 @@ Palaid `make run` un atver <http://localhost:8000/login>. Ir pieejamas lapas
 - Paroles atjaunošanas saite netiek sūtīta pa e-pastu, bet tiek ierakstīta servera
   žurnālā (terminālī). Tas ir pieļaujams tikai lokālajam prototipam.
 
+## CR-5 · Ezermalas CRM
+
+Klientu attiecību sistēma iestādei: organizācijas, kontaktpersonas, mijiedarbības,
+pieprasījumi un uzdevumi. Prasības: `docs/prasibas_arhitektura.md`, pieteikums
+`tracker/CR-5.md`.
+
+1. `make install` (vai `make install-dev`, lai palaistu arī pieejamības testu).
+2. `make run` un atver <http://localhost:8000/>.
+3. Sākumlapā izvēlies darbinieku. Mācību režīmā paroles nav; loma (darbinieks,
+   vadītājs, administrators) nosaka tiesības. Pēc izvēles atveras kopsavilkums (F9).
+
+- Dati glabājas `data/crm.db` (ceļu var mainīt ar `CRM_DB_PATH`). Pirmajā palaišanā tiek
+  ievietoti izdomāti sākumdati: 25 darbinieki, 10 organizācijas, 20 kontakti,
+  95 mijiedarbības, 43 pieprasījumi un 35 uzdevumi. Lai sāktu no jauna, izdzēs `data/crm.db`.
+- MI-1 kopsavilkums: bez `ANTHROPIC_API_KEY` darbojas atslēgvārdu imitācija; ar atslēgu
+  izmanto Claude (`claude-opus-5-5`).
+- Pieejamības tests `tests/a11y_check.py` (axe-core + Playwright) tiek izlaists, ja
+  Playwright vai Chromium nav uzstādīts.
+- MI-2 klasifikācija un lēmums: `docs/mi2_klasifikacija.md`.
+
 ## Komandas
 
 | Komanda | Nozīme |
@@ -56,4 +76,5 @@ Palaid `make run` un atver <http://localhost:8000/login>. Ir pieejamas lapas
 | `make verify-setup` | Pārbauda Python, kursa pakotnes, Claude Code, saglabāto atbildi un smoke testus |
 | `make test` | Palaiž visus `pytest` testus |
 | `make lint-contract` | Validē OpenAPI dokumentu un kursa līguma noteikumus |
-| `make run` | Palaiž prototipu uz porta 8000 (CR-4) |
+| `make run` | Palaiž prototipu uz porta 8000 (CR-4, CR-5) |
+| `make install` / `make install-dev` | Uzstāda lietotnes / testu atkarības (CR-5) |
