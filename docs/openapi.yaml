@@ -1725,7 +1725,8 @@ components:
     AuthValidationError:
       description: |
         Kļūdains pieprasījums. Iespējamās `issue` vērtības: `REQUIRED`,
-        `INVALID_FORMAT`, `TOO_SHORT`, `MISMATCH`, `INVALID_OR_EXPIRED`.
+        `INVALID_FORMAT`, `TOO_SHORT`, `TOO_LONG` (parole > 1024 simboli), `MISMATCH`,
+        `INVALID_OR_EXPIRED`.
       content:
         application/json:
           schema:

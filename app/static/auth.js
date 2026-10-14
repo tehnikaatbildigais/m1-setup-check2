@@ -13,6 +13,7 @@ const ISSUE_MESSAGES = {
   INVALID_FORMAT: "Nederīgs formāts.",
   TOO_SHORT: "Parolei jābūt vismaz 8 simbolus garai.",
   MISMATCH: "Paroles nesakrīt.",
+  TOO_LONG: "Parole ir pārāk gara (ne vairāk kā 1024 simboli).",
 };
 
 const STATUS_MESSAGES = {
@@ -30,13 +31,13 @@ function showFormError(form, message) {
 
 function showFieldError(form, field, issue) {
   const message = FIELD_MESSAGES[`${field}:${issue}`] || ISSUE_MESSAGES[issue] || "Nederīga vērtība.";
-  const target = form.querySelector(`[data-error-for="${field}"]`);
+  const target = form.querySelector(`[data-error-for="${CSS.escape(field)}"]`);
   if (!target) {
     showFormError(form, message);
     return;
   }
   target.textContent = message;
-  form.querySelector(`[name="${field}"]`)?.setAttribute("aria-invalid", "true");
+  form.querySelector(`[name="${CSS.escape(field)}"]`)?.setAttribute("aria-invalid", "true");
 }
 
 async function submitForm(event) {
@@ -95,7 +96,11 @@ function showQueryNotices() {
     if (params.has(el.dataset.noticeParam)) el.hidden = false;
   });
   const tokenInput = document.querySelector('input[name="token"]');
-  if (tokenInput) tokenInput.value = params.get("token") || "";
+  if (tokenInput) {
+    tokenInput.value = params.get("token") || "";
+    // Marķieris nepaliek adreses joslā un pārlūka vēsturē.
+    if (params.has("token")) window.history.replaceState(null, "", window.location.pathname);
+  }
 }
 
 document.querySelectorAll("form[data-endpoint]").forEach((form) => {

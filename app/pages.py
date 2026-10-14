@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from .auth import session_user
 
 STATIC_DIR = Path(__file__).parent / "static"
+WELCOME_TEMPLATE = (STATIC_DIR / "welcome.html").read_text(encoding="utf-8")
 
 router = APIRouter(include_in_schema=False)
 
@@ -50,6 +51,5 @@ def welcome_page(request: Request) -> HTMLResponse | RedirectResponse:
     user = session_user(request)
     if user is None:
         return RedirectResponse("/login", status_code=303)
-    template = (STATIC_DIR / "welcome.html").read_text(encoding="utf-8")
-    body = template.replace("{{username}}", html.escape(user["username"]))
+    body = WELCOME_TEMPLATE.replace("{{username}}", html.escape(user["username"]))
     return HTMLResponse(body, headers={"Cache-Control": "no-store"})

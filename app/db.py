@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS password_resets (
     expires_at REAL NOT NULL,
     used_at REAL
 );
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS password_resets_user ON password_resets(user_id);
 """
 
 
