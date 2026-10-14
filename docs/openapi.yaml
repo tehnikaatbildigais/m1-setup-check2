@@ -917,6 +917,105 @@ paths:
         '500':
           $ref: '#/components/responses/HtmlServerError'
 
+  /uzdevumi/sadale:
+    get:
+      tags: [CRM]
+      operationId: crmTaskBoard
+      summary: "Uzdevumu sadales tāfele (CR-6)"
+      description: |
+        Kolonnas ir darbinieki, kartītes ir viņu atvērtie uzdevumi (kavētie augšā). Kolonnas: vadītāja saglabātā izvēle vai darbinieki ar atvērtiem uzdevumiem. Tikai vadītājs vai administrators. JavaScript pievieno vilkšanu; bez tā katrai kartītei ir forma „Nodot citam darbiniekam”.
+      parameters:
+        - name: 'nodots'
+          in: query
+          required: false
+          description: "Nodotā uzdevuma ID (paziņojumam)"
+          schema:
+            type: string
+        - name: 'saglabats'
+          in: query
+          required: false
+          description: "Saglabātā darbinieka ID vai `1` (paziņojumam)"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmTaskBoardColumns
+      summary: "Saglabāt tāfeles kolonnu izvēli (CR-6)"
+      description: |
+        Izvēle tiek glabāta datubāzē pie vadītāja. `action=reset` atjauno noklusējumu.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BoardColumnsForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /uzdevumi/{taskId}/izpilditajs:
+    post:
+      tags: [CRM]
+      operationId: crmTaskReassign
+      summary: "Nodot uzdevumu citam darbiniekam (CR-6)"
+      description: |
+        Tikai vadītājs vai administrators; tikai atvērtam uzdevumam. Ar `Accept: application/json` (tāfeles vilkšana) atbilde ir 200 JSON, citādi 303 atpakaļ uz tāfeli. Izmaiņa tiek ierakstīta piekļuves žurnālā.
+      parameters:
+        - name: 'taskId'
+          in: path
+          required: true
+          description: "Uzdevuma ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReassignForm'
+      responses:
+        '200':
+          description: "Izpildītājs nomainīts (`Accept: application/json`)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskReassigned'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
   /uzdevumi/jauns:
     get:
       tags: [CRM]
@@ -1077,7 +1176,7 @@ paths:
         - name: 'saglabats'
           in: query
           required: false
-          description: "Saglabātā darbinieka ID (paziņojumam)"
+          description: "Saglabātā darbinieka ID vai `1` (paziņojumam)"
           schema:
             type: string
         - $ref: '#/components/parameters/CrmEmployeeCookie'
@@ -1506,6 +1605,35 @@ components:
           type: integer
         request_id:
           type: integer
+
+    BoardColumnsForm:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [save, reset]
+        employee_ids:
+          type: array
+          items:
+            type: integer
+
+    ReassignForm:
+      type: object
+      required: [assignee_id]
+      properties:
+        assignee_id:
+          type: integer
+
+    TaskReassigned:
+      type: object
+      required: [id, assignee_id, assignee_name]
+      properties:
+        id:
+          type: integer
+        assignee_id:
+          type: integer
+        assignee_name:
+          type: string
 
     TaskDoneForm:
       type: object

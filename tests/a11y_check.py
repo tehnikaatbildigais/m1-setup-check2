@@ -42,6 +42,7 @@ MAIN_PATH = [
     ("/meklet?q=ezer", 1),
     ("/meklet?q=neesošs", 1),
     ("/parskats", 23),
+    ("/uzdevumi/sadale", 23),
     ("/admin/lomas", 25),
     ("/admin/glabasana", 25),
     ("/admin/zurnals", 25),
@@ -162,3 +163,99 @@ def test_keyboard_only_main_path(browser, base_url) -> None:
     page.keyboard.press("Enter")
     page.wait_for_url("**/organizacijas/1")
     page.close()
+
+
+# --- CR-6: ietvars un uzdevumu sadales tāfele ---------------------------------------------
+
+def _card_column(page, task_id: int) -> str:
+    return page.evaluate(
+        "id => document.getElementById('uzdevums-' + id).closest('.board-column').dataset.employee",
+        task_id,
+    )
+
+
+def test_board_drag_and_drop_reassigns(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 23)
+    page.goto(base_url + "/uzdevumi/sadale")
+    target = page.locator('.board-column[data-employee="2"]')
+    page.locator("#uzdevums-4").drag_to(target)  # Jānis → Jānis: tā pati kolonna, nekas nemainās
+    page.locator("#uzdevums-8").drag_to(target)
+    page.wait_for_function("document.getElementById('live').textContent.includes('Uzdevums nodots')")
+    assert _card_column(page, 8) == "2"
+    page.reload()
+    assert _card_column(page, 8) == "2"  # saglabāts serverī
+    page.close()
+
+
+def test_board_failed_move_returns_card(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 23)
+    page.route("**/izpilditajs", lambda route: route.fulfill(
+        status=500, content_type="application/json",
+        body='{"error": {"code": "INTERNAL_ERROR", "message": "x"}}'))
+    page.goto(base_url + "/uzdevumi/sadale")
+    before = _card_column(page, 9)
+    # Tas pats atgriešanas ceļš kā vilkšanai (reassign()); forma neatkarīga no kolonnu novietojuma.
+    page.select_option("#reassign-9", "2")
+    page.locator("#uzdevums-9 form.reassign button").click()
+    page.wait_for_function("document.getElementById('live').textContent.includes('Kartīte atgriezta')")
+    assert _card_column(page, 9) == before
+    assert page.input_value("#reassign-9") == before
+    page.close()
+
+
+def test_board_keyboard_reassign_keeps_focus(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 25)
+    page.goto(base_url + "/uzdevumi/sadale")
+    page.focus("#reassign-10")
+    page.select_option("#reassign-10", "2")
+    page.keyboard.press("Tab")
+    page.keyboard.press("Enter")
+    page.wait_for_function("document.getElementById('live').textContent.includes('Uzdevums nodots: Jānis Ozols')")
+    assert _card_column(page, 10) == "2"
+    assert page.evaluate("document.activeElement.id") == "reassign-10"
+    open_count = page.locator('.board-column[data-employee="2"] [data-open]').inner_text()
+    assert int(open_count) == page.locator('.board-column[data-employee="2"] .task-card').count()
+    page.close()
+
+
+def test_add_menu_keyboard(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 1)
+    page.goto(base_url + "/organizacijas")
+    page.focus(".add-menu summary")
+    page.keyboard.press("Enter")
+    page.wait_for_function("document.activeElement.getAttribute('href') === '/organizacijas/jauna'")
+    page.keyboard.press("ArrowDown")
+    assert page.evaluate("document.activeElement.getAttribute('href')") == "/uzdevumi/jauns"
+    page.keyboard.press("Escape")
+    assert page.evaluate("document.querySelector('.add-menu').open") is False
+    assert page.evaluate("document.activeElement.tagName") == "SUMMARY"
+    page.close()
+
+
+def test_mobile_menu_toggle(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 1, viewport={"width": 375, "height": 800})
+    page.goto(base_url + "/organizacijas")
+    assert not page.locator("#main-nav").is_visible()
+    page.click(".menu-toggle")
+    assert page.locator("#main-nav").is_visible()
+    assert page.get_attribute(".menu-toggle", "aria-expanded") == "true"
+    page.close()
+
+
+def test_without_javascript_everything_still_works(browser, base_url) -> None:
+    context = browser.new_context(java_script_enabled=False, viewport={"width": 375, "height": 800})
+    context.add_cookies([{"name": "crm_darbinieks", "value": "23", "url": base_url}])
+    page = context.new_page()
+    page.goto(base_url + "/organizacijas")
+    assert page.locator("#main-nav").is_visible()  # bez JS izvēlne vienkārši redzama
+    page.click(".add-menu summary")
+    page.click(".menu-list a[href='/organizacijas/jauna']")
+    page.fill("#f-reg_nr", "123")
+    page.click("form.narrow button[type=submit]")
+    assert page.locator(".error-summary").is_visible()
+    page.goto(base_url + "/uzdevumi/sadale")
+    page.select_option("#reassign-6", "1")
+    page.locator("#uzdevums-6 form.reassign button").click()
+    page.wait_for_url("**/uzdevumi/sadale?nodots=6*")
+    assert "Uzdevums nodots: Anna Kalniņa" in page.content()
+    context.close()

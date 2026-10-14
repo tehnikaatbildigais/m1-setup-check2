@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS tasks (
     done_on TEXT,
     CHECK (organization_id IS NOT NULL OR request_id IS NOT NULL)
 );
+-- CR-6: vadītāja izvēlētās tāfeles kolonnas; ja vadītājam nav rindu, rāda noklusējumu.
+CREATE TABLE IF NOT EXISTS board_columns (
+    manager_id INTEGER NOT NULL REFERENCES employees(id),
+    employee_id INTEGER NOT NULL REFERENCES employees(id),
+    PRIMARY KEY (manager_id, employee_id)
+);
 CREATE TABLE IF NOT EXISTS access_log (
     id INTEGER PRIMARY KEY,
     at TEXT NOT NULL,

@@ -1,39 +1,66 @@
+{%- from "_icons.html" import icon -%}
 <!doctype html>
-<html lang="lv">
+<html lang="lv" class="no-js">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% endblock %} | Ezermalas CRM</title>
-  <link rel="preload" href="/static/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/onest-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/crm.css">
+  <script>document.documentElement.classList.replace("no-js", "js");</script>
+  <script src="/static/crm.js" defer></script>
+  {% block scripts %}{% endblock %}
 </head>
-<body>
+<body class="{{ 'with-sidebar' if employee else 'bare' }}">
 <a class="skip-link" href="#saturs">Pāriet uz saturu</a>
-<header class="site-header">
-  <div class="bar">
-    <a class="brand" href="{{ '/kopsavilkums' if employee else '/sakums' }}">Ezermalas CRM</a>
-    {% if employee %}
-    <form class="search" role="search" action="/meklet" method="get">
-      <label for="global-q" class="visually-hidden">Meklēt organizācijas, kontaktus un pieprasījumus</label>
-      <input id="global-q" name="q" type="search" value="{{ q | default('') }}">
-      <button type="submit" class="secondary">Meklēt</button>
-    </form>
-    <p class="who">{{ employee.name }}, {{ ROLES[employee.role] }}. <a href="/sakums">Mainīt darbinieku</a></p>
-    {% endif %}
+{% if employee %}
+{% set items = [("/kopsavilkums", "Kopsavilkums", "kopsavilkums"), ("/uzdevumi", "Mani uzdevumi", "uzdevumi"), ("/organizacijas", "Organizācijas", "organizacijas"), ("/pieprasijumi", "Pieprasījumi", "pieprasijumi")] %}
+{% if is_manager %}{% set items = items + [("/uzdevumi/sadale", "Uzdevumu sadale", "sadale"), ("/parskats", "Pārskats", "parskats")] %}{% endif %}
+{% if is_admin %}{% set items = items + [("/admin/lomas", "Administrēšana", "admin")] %}{% endif %}
+{% set ns = namespace(current="", section="Ezermalas CRM") %}
+{% for href, label, _ in items %}
+  {% set prefix = "/admin" if href.startswith("/admin") else href %}
+  {% if path == prefix or path.startswith(prefix ~ "/") or (prefix == "/organizacijas" and path.startswith("/kontakti")) %}
+    {% if not ns.current or prefix | length > ns.current | length %}{% set ns.current = prefix %}{% set ns.section = label %}{% endif %}
+  {% endif %}
+{% endfor %}
+<aside class="sidebar">
+  <div class="sidebar-top">
+    <a class="brand" href="/kopsavilkums"><span class="brand-mark" aria-hidden="true"></span>Ezermalas CRM</a>
+    <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="main-nav">{{ icon("menu") }}<span>Izvēlne</span></button>
   </div>
-  {% if employee %}
-  <nav class="main-nav" aria-label="Galvenā navigācija">
+  <nav class="main-nav" id="main-nav" aria-label="Galvenā navigācija">
     <ul>
-      {% set items = [("/kopsavilkums", "Kopsavilkums"), ("/uzdevumi", "Mani uzdevumi"), ("/organizacijas", "Organizācijas"), ("/pieprasijumi", "Pieprasījumi")] %}
-      {% if is_manager %}{% set items = items + [("/parskats", "Pārskats")] %}{% endif %}
-      {% if is_admin %}{% set items = items + [("/admin/lomas", "Administrēšana")] %}{% endif %}
-      {% for href, label in items %}
-      <li><a href="{{ href }}"{% if path.startswith(href.rsplit('/', 1)[0] if href.startswith('/admin') else href) %} aria-current="page"{% endif %}>{{ label }}</a></li>
+      {% for href, label, ico in items %}
+      {% set prefix = "/admin" if href.startswith("/admin") else href %}
+      <li><a href="{{ href }}"{% if prefix == ns.current %} aria-current="page"{% endif %}>{{ icon(ico) }}<span>{{ label }}</span></a></li>
       {% endfor %}
     </ul>
   </nav>
-  {% endif %}
+</aside>
+<div class="workspace">
+<header class="topbar">
+  <p class="section-title">{{ ns.section }}</p>
+  <form class="search" role="search" action="/meklet" method="get">
+    <label for="global-q" class="visually-hidden">Meklēt organizācijas, kontaktus un pieprasījumus</label>
+    <input id="global-q" name="q" type="search" value="{{ q | default('') }}" placeholder="Meklēt organizācijas, kontaktus, pieprasījumus">
+    <button type="submit" class="icon-button" aria-label="Meklēt">{{ icon("search") }}</button>
+  </form>
+  <details class="add-menu">
+    <summary class="button">{{ icon("plus") }}<span>Pievienot</span></summary>
+    <ul class="menu-list">
+      <li><a href="/organizacijas/jauna">Organizācija</a></li>
+      <li><a href="/uzdevumi/jauns">Uzdevums</a></li>
+    </ul>
+  </details>
+  <p class="who">{{ icon("user") }}<span><strong>{{ employee.name }}</strong> <span class="role">{{ ROLES[employee.role] }}</span></span> <a href="/sakums">Mainīt darbinieku</a></p>
 </header>
+{% else %}
+<div class="workspace">
+<header class="topbar bare-top">
+  <a class="brand" href="/sakums"><span class="brand-mark" aria-hidden="true"></span>Ezermalas CRM</a>
+</header>
+{% endif %}
 <main id="saturs" tabindex="-1">
 {% block content %}{% endblock %}
 </main>
@@ -41,5 +68,7 @@
   <p>Mācību režīms, nav pieteikšanās. Visi dati ir izdomāti.</p>
   <p><a href="/pieklustamiba">Piekļūstamības paziņojums</a></p>
 </footer>
+</div>
+<div class="live-region visually-hidden" role="status" aria-live="polite" id="live"></div>
 </body>
 </html>
