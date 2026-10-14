@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Piekļūstamības atsauksmes{% endblock %}
+{% block content %}
+<h1>Administrēšana</h1>
+{% include "_admin_nav.html" %}
+<h2>Piekļūstamības atsauksmes</h2>
+<p class="lead">Ziņojumi no piekļūstamības paziņojuma formas. Pēc atbildes ziņojumu dzēs, lai saziņas dati netiktu glabāti ilgāk, nekā vajag.</p>
+{% if feedback %}
+<div class="table-wrap" role="region" aria-labelledby="fb-caption" tabindex="0">
+<table>
+  <caption id="fb-caption">{{ feedback | length }} ziņojumi, jaunākie augšā</caption>
+  <thead><tr><th scope="col">Saņemts</th><th scope="col">Lapa</th><th scope="col">Apraksts</th><th scope="col">Atbildei</th><th scope="col">Darbība</th></tr></thead>
+  <tbody>
+  {% for f in feedback %}
+    <tr>
+      <td><time datetime="{{ f.created_at }}">{{ f.created_at[:10] | lvdate }} {{ f.created_at[11:16] }}</time></td>
+      <td>{{ f.page }}</td>
+      <th scope="row">{{ f.description }}</th>
+      <td>{% if f.contact %}<a href="mailto:{{ f.contact }}">{{ f.contact }}</a>{% else %}Nav norādīts{% endif %}</td>
+      <td>
+        <form method="post" action="/admin/atsauksmes/{{ f.id }}/dzest">
+          <button type="submit" class="secondary">Dzēst<span class="visually-hidden"> ziņojumu nr. {{ f.id }}</span></button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="empty">Jaunu ziņojumu nav.</p>{% endif %}
+{% endblock %}

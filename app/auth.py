@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sqlite3
 
@@ -25,7 +26,15 @@ RESET_TOKEN_SECONDS = 30 * 60
 
 EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
-INVALID_CREDENTIALS = ApiError(401, "INVALID_CREDENTIALS", "Invalid login or password")
+MAX_PASSWORD_LENGTH = 1024  # aizsardzība pret dārgu scrypt aprēķinu ar milzīgu ievadi
+# Bāzes adrese atjaunošanas saitei; netiek ņemta no klienta `Host` galvenes.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+
+
+def invalid_credentials() -> ApiError:
+    # Katram pieprasījumam jauns izņēmums: kopīgs eksemplārs glabātu pēdējā pieprasījuma
+    # izsekojumu (ar paroli lokālajos mainīgajos) un sacenstos starp pavedieniem.
+    return ApiError(401, "INVALID_CREDENTIALS", "Invalid login or password")
 
 
 class RegisterRequest(BaseModel):
@@ -62,6 +71,8 @@ def _check_password(password: str, confirm: str, details: list[Detail]) -> None:
         details.append(("password", "REQUIRED"))
     elif len(password) < MIN_PASSWORD_LENGTH:
         details.append(("password", "TOO_SHORT"))
+    elif len(password) > MAX_PASSWORD_LENGTH:
+        details.append(("password", "TOO_LONG"))
     if password and confirm != password:
         details.append(("passwordConfirm", "MISMATCH"))
 
@@ -116,26 +127,31 @@ def login(body: LoginRequest, request: Request, response: Response) -> dict:
         details.append(("login", "REQUIRED"))
     if not body.password:
         details.append(("password", "REQUIRED"))
+    elif len(body.password) > MAX_PASSWORD_LENGTH:
+        raise invalid_credentials()
     if details:
         raise validation_error(details)
 
     db, now = request.app.state.db, request.app.state.clock()
     # Lietotājvārds nedrīkst saturēt `@`, tāpēc ievade ar `@` vienmēr ir e-pasts.
     column = "email" if "@" in body.login else "username"
-    with db.connect() as conn:
+    session_token = new_token()
+    # Viss lēmums vienā rakstīšanas transakcijā: paralēli mēģinājumi tiek apstrādāti pēc
+    # kārtas un redz cits cita bloķēšanu (citādi tos var izmantot, lai apietu 3 mēģinājumus).
+    with db.transaction() as conn:
         user = conn.execute(
             f"SELECT id, username, password_hash, locked_until FROM users WHERE {column} = ?",
             (body.login,),
         ).fetchone()
-    if user is None:
-        verify_password(body.password, DUMMY_HASH)
-        raise INVALID_CREDENTIALS
-
-    password_ok = verify_password(body.password, user["password_hash"])
-    locked = user["locked_until"] is not None and user["locked_until"] > now
-    session_token = new_token()
-    with db.transaction() as conn:
-        if locked:
+        if user is None:
+            password_ok = locked = False
+            verify_password(body.password, DUMMY_HASH)
+        else:
+            locked = user["locked_until"] is not None and user["locked_until"] > now
+            password_ok = verify_password(body.password, user["password_hash"])
+        if user is None:
+            pass
+        elif locked:
             pass  # Bloķēšanas laikā mēģinājumi netiek skaitīti un bloķēšana netiek pagarināta.
         elif not password_ok:
             conn.execute(
@@ -156,8 +172,8 @@ def login(body: LoginRequest, request: Request, response: Response) -> dict:
                 "INSERT INTO sessions (token_hash, user_id, created_at) VALUES (?, ?, ?)",
                 (token_hash(session_token), user["id"], now),
             )
-    if locked or not password_ok:
-        raise INVALID_CREDENTIALS
+    if user is None or locked or not password_ok:
+        raise invalid_credentials()
 
     response.set_cookie(SESSION_COOKIE, session_token, httponly=True, samesite="lax", path="/")
     return {"username": user["username"]}
@@ -190,7 +206,7 @@ def request_password_reset(body: PasswordResetRequest, request: Request) -> JSON
                 "INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
                 (token_hash(token), user["id"], now + RESET_TOKEN_SECONDS),
             )
-            link = f"{str(request.base_url).rstrip('/')}/password-reset/confirm?token={token}"
+            link = f"{PUBLIC_BASE_URL}/password-reset/confirm?token={token}"
             # Tikai lokālajam prototipam: e-pasts netiek sūtīts (CR-4 komentāri).
             logger.info("Paroles atjaunošanas saite lietotājam %s: %s", body.email, link)
     # Vienāda atbilde neatkarīgi no tā, vai e-pasts ir reģistrēts.
@@ -207,8 +223,16 @@ def confirm_password_reset(body: PasswordResetConfirm, request: Request) -> dict
     if details:
         raise validation_error(details)
 
-    password_hash = hash_password(body.password)
     db, now = request.app.state.db, request.app.state.clock()
+    valid_token_sql = (
+        "SELECT user_id FROM password_resets"
+        " WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?"
+    )
+    # Nederīgu marķieri noraida pirms dārgās scrypt jaukšanas.
+    with db.connect() as conn:
+        if conn.execute(valid_token_sql, (token_hash(body.token), now)).fetchone() is None:
+            raise validation_error([("token", "INVALID_OR_EXPIRED")])
+    password_hash = hash_password(body.password)
     with db.transaction() as conn:
         reset = conn.execute(
             "SELECT user_id FROM password_resets"

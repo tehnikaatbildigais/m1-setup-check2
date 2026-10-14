@@ -11,4 +11,6 @@ jobs:
         run: echo 'Template repository self-check; not participant evidence.' > setup/claude-answer.md
       - name: Install app dependencies (CR-5)
         run: pip install -r requirements.txt
+      - name: Run all tests (CR-4…CR-6; a11y tests skip without Playwright)
+        run: make test
       - run: make verify-setup

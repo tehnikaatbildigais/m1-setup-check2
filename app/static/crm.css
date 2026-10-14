@@ -103,7 +103,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; } /* zem „sticky” augšējās joslas */
 
 body {
   margin: 0;
@@ -273,8 +273,9 @@ body.with-sidebar::before {
 .icon-button:hover { color: var(--ink); background: var(--surface-sunken); }
 
 .add-menu { position: relative; }
-.add-menu summary { list-style: none; gap: 6px; }
-.add-menu summary::-webkit-details-marker { display: none; }
+details[data-menu] > summary { list-style: none; }
+details[data-menu] > summary::-webkit-details-marker { display: none; }
+.add-menu summary { gap: 6px; }
 .menu-list {
   position: absolute;
   right: 0;
@@ -623,8 +624,6 @@ figcaption { margin-top: 8px; color: var(--muted); font-size: var(--step-xs); }
 .board-summary strong { color: var(--ink); }
 
 .column-picker { position: relative; }
-.column-picker summary { list-style: none; }
-.column-picker summary::-webkit-details-marker { display: none; }
 .column-picker-panel {
   position: absolute;
   left: 0;
@@ -659,6 +658,7 @@ figcaption { margin-top: 8px; color: var(--muted); font-size: var(--step-xs); }
 }
 
 .board-column {
+  margin-top: 0; /* vispārējais section atstarpes noteikums šeit neattiecas */
   display: flex;
   flex-direction: column;
   min-height: 12rem;
@@ -719,8 +719,10 @@ figcaption { margin-top: 8px; color: var(--muted); font-size: var(--step-xs); }
     background: transparent;
     border-color: var(--side-muted);
   }
-  .no-js .menu-toggle { display: none; }
-  .js .main-nav:not(.is-open) { display: none; }
+  html:not([data-nav-ready]) .menu-toggle { display: none; }
+  html[data-nav-ready] .main-nav:not(.is-open) { display: none; }
+  html { scroll-padding-top: 0; }
+  .menu-list { right: auto; left: 0; }
   .main-nav ul { margin-top: 10px; }
   .main-nav a[aria-current="page"]::before { left: -4px; }
   .topbar { position: static; padding: 10px 16px; }
@@ -748,3 +750,5 @@ figcaption { margin-top: 8px; color: var(--muted); font-size: var(--step-xs); }
     to { box-shadow: 0 0 0 0 transparent; }
   }
 }
+
+address { font-style: normal; }

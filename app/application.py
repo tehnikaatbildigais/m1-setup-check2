@@ -31,9 +31,10 @@ def create_app(
     app.state.db = Database(db_path or os.environ.get("AUTH_DB_PATH", DEFAULT_DB_PATH))
     app.state.clock = clock
     if crm_db_path is None:
-        # Ja norādīts tikai lietotāju DB ceļš (piem., CR-4 testos), CRM DB ir blakus tam.
-        crm_db_path = Path(db_path).with_name("crm.db") if db_path else os.environ.get(
-            "CRM_DB_PATH", DEFAULT_CRM_DB_PATH
+        # Secība: arguments → CRM_DB_PATH → blakus norādītajai lietotāju DB (CR-4 testi)
+        # → noklusējums.
+        crm_db_path = os.environ.get("CRM_DB_PATH") or (
+            Path(db_path).with_name("crm.db") if db_path else DEFAULT_CRM_DB_PATH
         )
     app.state.crm_db = Database(crm_db_path, schema.SCHEMA)
     app.state.today = today

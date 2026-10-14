@@ -165,7 +165,8 @@ paths:
         mēģinājumi netiek skaitīti. Veiksmīga pieteikšanās nonullē kļūdu skaitu.
 
         Nepareiza parole, neesošs lietotājs un bloķēts konts atgriež vienu un
-        to pašu `401` atbildi, lai nevarētu noteikt, vai konts eksistē.
+        to pašu `401` atbildi, lai nevarētu noteikt, vai konts eksistē. Arī parole,
+        kas garāka par 1024 simboliem, atgriež `401` bez paroles pārbaudes.
       requestBody:
         required: true
         content:
@@ -956,7 +957,7 @@ paths:
       operationId: crmTaskBoardColumns
       summary: "Saglabāt tāfeles kolonnu izvēli (CR-6)"
       description: |
-        Izvēle tiek glabāta datubāzē pie vadītāja. `action=reset` atjauno noklusējumu.
+        Izvēle tiek glabāta datubāzē pie vadītāja. `action=reset` vai tukšs `employee_ids` atjauno noklusējumu (darbinieki ar atvērtiem uzdevumiem).
       parameters:
         - $ref: '#/components/parameters/CrmEmployeeCookie'
       requestBody:
@@ -983,7 +984,7 @@ paths:
       operationId: crmTaskReassign
       summary: "Nodot uzdevumu citam darbiniekam (CR-6)"
       description: |
-        Tikai vadītājs vai administrators; tikai atvērtam uzdevumam. Ar `Accept: application/json` (tāfeles vilkšana) atbilde ir 200 JSON, citādi 303 atpakaļ uz tāfeli. Izmaiņa tiek ierakstīta piekļuves žurnālā.
+        Tikai vadītājs vai administrators; tikai atvērtam uzdevumam. Ja `Accept` satur `application/json` un nesatur `text/html` (tāfeles `fetch`), atbilde ir 200 JSON un kļūdas ir `Error` (izpildītam uzdevumam `code: TASK_DONE`); citādi 303 atpakaļ uz tāfeli un kļūdas ir HTML lapa. Izmaiņa tiek ierakstīta piekļuves žurnālā.
       parameters:
         - name: 'taskId'
           in: path
@@ -1289,14 +1290,95 @@ paths:
     get:
       tags: [CRM]
       operationId: crmAccessibility
-      summary: "Piekļūstamības paziņojums (F8)"
+      summary: "Piekļūstamības paziņojums (F8, CR-7)"
       description: |
-        Pieejams bez darbinieka izvēles.
+        Pieejams bez darbinieka izvēles. Saturs pēc Lēmuma (ES) 2018/1523 parauga:
+        atbilstības statuss, nepieejamais saturs, sagatavošana, atgriezeniskā saite,
+        sūdzību kārtība (Tiesībsargs).
+      parameters:
+        - name: 'nosutits'
+          in: query
+          required: false
+          description: "`1` — rāda apstiprinājumu par nosūtītu ziņojumu"
+          schema:
+            type: string
       responses:
         '200':
           $ref: '#/components/responses/HtmlPage'
         '400':
           $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmAccessibilityFeedback
+      summary: "Ziņot par piekļūstamības problēmu (CR-7)"
+      description: |
+        Atgriezeniskās saites mehānisms (Direktīva 2016/2102, MK noteikumi Nr. 445).
+        Pieejams bez darbinieka izvēles un bez JavaScript. Saziņas e-pasts nav obligāts.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccessibilityFeedbackForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/atsauksmes:
+    get:
+      tags: [CRM]
+      operationId: crmAdminFeedback
+      summary: "Piekļūstamības atsauksmes (CR-7)"
+      description: |
+        Tikai administrators.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/atsauksmes/{feedbackId}/dzest:
+    post:
+      tags: [CRM]
+      operationId: crmAdminFeedbackDelete
+      summary: "Dzēst apstrādātu atsauksmi (CR-7)"
+      description: |
+        Tikai administrators. Ieraksts piekļuves žurnālā („dzēsa”, atsauksme).
+      parameters:
+        - name: 'feedbackId'
+          in: path
+          required: true
+          description: "Atsauksmes ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
         '404':
           $ref: '#/components/responses/HtmlNotFound'
         '500':
@@ -1432,6 +1514,7 @@ components:
           type: string
           format: password
           minLength: 8
+          maxLength: 1024
         passwordConfirm:
           type: string
           format: password
@@ -1488,6 +1571,7 @@ components:
           type: string
           format: password
           minLength: 8
+          maxLength: 1024
         passwordConfirm:
           type: string
           format: password
@@ -1635,13 +1719,28 @@ components:
         assignee_name:
           type: string
 
+    AccessibilityFeedbackForm:
+      type: object
+      required: [description]
+      properties:
+        page:
+          type: string
+          maxLength: 300
+        description:
+          type: string
+          maxLength: 2000
+        contact:
+          type: string
+          format: email
+          maxLength: 200
+          description: Nav obligāts; tikai atbildei
+
     TaskDoneForm:
       type: object
       properties:
         return_to:
           type: string
-          enum: [/uzdevumi, /kopsavilkums]
-          description: Lapa pēc atzīmēšanas; cita vērtība → `/uzdevumi`
+          description: "Lapa pēc atzīmēšanas: `/uzdevumi` vai `/kopsavilkums`; jebkura cita vērtība → `/uzdevumi` (nav kļūda)"
 
     EmployeeChoiceForm:
       type: object
@@ -1725,7 +1824,8 @@ components:
     AuthValidationError:
       description: |
         Kļūdains pieprasījums. Iespējamās `issue` vērtības: `REQUIRED`,
-        `INVALID_FORMAT`, `TOO_SHORT`, `MISMATCH`, `INVALID_OR_EXPIRED`.
+        `INVALID_FORMAT`, `TOO_SHORT`, `TOO_LONG` (parole > 1024 simboli), `MISMATCH`,
+        `INVALID_OR_EXPIRED`.
       content:
         application/json:
           schema:
@@ -1805,7 +1905,7 @@ components:
           schema:
             type: string
     HtmlBadRequest:
-      description: "Kļūdaina ievade. Pārlūks (`Accept: text/html`) saņem formu atkārtoti ar kļūdu tekstiem pie laukiem; citi klienti saņem `Error`."
+      description: "Kļūdaina ievade. Pārlūks (`Accept: text/html`) saņem formu atkārtoti ar kļūdu tekstiem pie laukiem vai, ja operācijai nav formas (piem., statusa vai izpildītāja maiņa), kļūdas lapu; citi klienti saņem `Error`."
       content:
         text/html:
           schema:

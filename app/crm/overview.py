@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from . import chart, schema
 from .web import (
-    EMPLOYEE_COOKIE, Form, NeedsEmployee, crm_db, current_employee, is_admin, is_manager, render, require,
-    today,
+    EMAIL_RE, EMPLOYEE_COOKIE, Form, NeedsEmployee, crm_db, current_employee, get_or_404,
+    is_admin, is_manager, log_access, render, require, today,
 )
 from .work import is_overdue, today_tasks
 
@@ -56,7 +56,8 @@ def dashboard(request: Request):
     day = today(request)
     today_iso = day.isoformat()
     soon = (day + timedelta(days=DASHBOARD_DAYS)).isoformat()
-    week_ago = (day - timedelta(days=DASHBOARD_DAYS)).isoformat()
+    # „Pēdējās 7 dienas” = šodiena un 6 iepriekšējās dienas.
+    week_ago = (day - timedelta(days=DASHBOARD_DAYS - 1)).isoformat()
     with crm_db(request).connect() as conn:
         tasks = today_tasks(conn, employee["id"], today_iso)
         own_orgs = conn.execute(
@@ -99,7 +100,7 @@ def dashboard(request: Request):
             }
         expired = None
         if admin:
-            expired = len(expired_contacts(conn, schema.retention_cutoff(day).isoformat()))
+            expired = count_expired_contacts(conn, schema.retention_cutoff(day).isoformat())
     return render(request, "dashboard.html", {
         "employee": employee, "tasks": tasks, "day": today_iso,
         "late": [r for r in my_requests if r["deadline"] < today_iso],
@@ -236,17 +237,28 @@ async def admin_set_role(request: Request, employee_id: int):
     return RedirectResponse(f"/admin/lomas?saglabats={employee_id}", status_code=303)
 
 
+LAST_CONTACT_SQL = (
+    "max(c.basis_date, COALESCE((SELECT max(i.date) FROM interaction_participants ip"
+    " JOIN interactions i ON i.id = ip.interaction_id WHERE ip.contact_id = c.id), ''))"
+)
+
+
 def expired_contacts(conn, cutoff: str):
     """N2: kontaktpersonas, ar kurām pēdējā saziņa bija pirms `cutoff`."""
-    contacts = conn.execute(
+    return conn.execute(
         "SELECT c.id, c.name, c.organization_id, o.name AS org_name,"
-        " max(c.basis_date, COALESCE((SELECT max(i.date) FROM interaction_participants ip"
-        "   JOIN interactions i ON i.id = ip.interaction_id WHERE ip.contact_id = c.id), ''))"
-        " AS last_contact"
+        f" {LAST_CONTACT_SQL} AS last_contact"
         " FROM contacts c JOIN organizations o ON o.id = c.organization_id"
-        " ORDER BY last_contact"
+        f" WHERE {LAST_CONTACT_SQL} < ? ORDER BY last_contact",
+        (cutoff,),
     ).fetchall()
-    return [c for c in contacts if c["last_contact"] < cutoff]
+
+
+def count_expired_contacts(conn, cutoff: str) -> int:
+    """Tikai skaits kopsavilkumam: personas dati netiek nolasīti."""
+    return conn.execute(
+        f"SELECT COUNT(*) FROM contacts c WHERE {LAST_CONTACT_SQL} < ?", (cutoff,)
+    ).fetchone()[0]
 
 
 @router.get("/admin/glabasana")
@@ -288,10 +300,59 @@ def admin_log(request: Request, darbinieks: str = "", organizacija: str = ""):
 
 # --- F8 · piekļūstamības paziņojums ----------------------------------------------------
 
+def _optional_employee(request: Request):
+    try:
+        return current_employee(request)
+    except NeedsEmployee:
+        return None
+
+
 @router.get("/pieklustamiba")
 def accessibility(request: Request):
-    try:
-        employee = current_employee(request)
-    except NeedsEmployee:
-        employee = None
-    return render(request, "accessibility.html", {"employee": employee})
+    return render(request, "accessibility.html", {
+        "employee": _optional_employee(request), "values": {}, "errors": {},
+        "sent": bool(request.query_params.get("nosutits")),
+    })
+
+
+@router.post("/pieklustamiba")
+async def accessibility_feedback(request: Request):
+    """Atgriezeniskās saites mehānisms: pieejams bez pieteikšanās un bez JavaScript."""
+    form = Form(await request.form())
+    form.text("page", "Lapa vai vieta", required=False, max_len=300)
+    form.text("description", "Problēmas apraksts", max_len=2000)
+    contact = form.text("contact", "E-pasts atbildei", required=False, max_len=200)
+    if contact and "contact" not in form.errors and not EMAIL_RE.fullmatch(contact):
+        form.error("contact", "Ievadi derīgu e-pastu vai atstāj lauku tukšu.")
+    if not form.ok:
+        return render(request, "accessibility.html", {
+            "employee": _optional_employee(request), "values": form.values,
+            "errors": form.errors, "sent": False,
+        }, status=400)
+    with crm_db(request).transaction() as conn:
+        conn.execute(
+            "INSERT INTO accessibility_feedback (created_at, page, description, contact)"
+            " VALUES (?, ?, ?, ?)",
+            (datetime.now().isoformat(timespec="seconds"), form.values["page"],
+             form.values["description"], contact),
+        )
+    return RedirectResponse("/pieklustamiba?nosutits=1#atsauksmes", status_code=303)
+
+
+@router.get("/admin/atsauksmes")
+def admin_feedback(request: Request):
+    employee = _admin(request)
+    with crm_db(request).connect() as conn:
+        items = conn.execute("SELECT * FROM accessibility_feedback ORDER BY id DESC").fetchall()
+    return render(request, "admin_feedback.html", {"employee": employee, "feedback": items})
+
+
+@router.post("/admin/atsauksmes/{feedback_id}/dzest")
+def admin_feedback_delete(request: Request, feedback_id: int):
+    employee = _admin(request)
+    with crm_db(request).transaction() as conn:
+        get_or_404(conn, "SELECT id FROM accessibility_feedback WHERE id = ?", feedback_id)
+        # Pēc apstrādes dzēš (VDAR: saziņas dati netiek glabāti ilgāk, nekā vajag).
+        conn.execute("DELETE FROM accessibility_feedback WHERE id = ?", (feedback_id,))
+        log_access(conn, employee["id"], "dzēsa", "atsauksme", feedback_id, None)
+    return RedirectResponse("/admin/atsauksmes", status_code=303)

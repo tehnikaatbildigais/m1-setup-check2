@@ -30,7 +30,8 @@ def client(tmp_path: Path, crm_db: Path):
 
 
 def act_as(client, employee_id: int) -> None:
-    client.post("/sakums", data={"employee_id": str(employee_id)}, follow_redirects=False)
+    response = client.post("/sakums", data={"employee_id": str(employee_id)}, follow_redirects=False)
+    assert response.status_code == 303
 
 
 def query(db: Path, sql: str, *params):
@@ -63,7 +64,7 @@ def test_topbar_search_and_add_menu(client) -> None:
     page = client.get("/organizacijas").text
     assert '<p class="section-title">Organizācijas</p>' in page
     assert 'role="search"' in page and 'aria-label="Meklēt"' in page
-    menu = page.split('<details class="add-menu">')[1].split("</details>")[0]
+    menu = page.split('<details class="add-menu" data-menu>')[1].split("</details>")[0]
     assert 'href="/organizacijas/jauna"' in menu and 'href="/uzdevumi/jauns"' in menu
 
 
@@ -128,11 +129,11 @@ def test_reassign_json(client, crm_db) -> None:
     assert "Nosūtīt semināra programmu" in client.get("/uzdevumi").text
 
 
-@pytest.mark.parametrize("assignee,status", [("999", 400), ("", 400), ("abc", 400)])
-def test_reassign_invalid_employee(client, assignee, status) -> None:
+@pytest.mark.parametrize("assignee", ["999", "", "abc"])
+def test_reassign_invalid_employee(client, assignee) -> None:
     act_as(client, INESE)
     response = client.post("/uzdevumi/1/izpilditajs", data={"assignee_id": assignee}, headers=JSON)
-    assert response.status_code == status
+    assert response.status_code == 400
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
@@ -179,3 +180,37 @@ def test_board_is_scrollable_named_region(client) -> None:
     page = client.get("/uzdevumi/sadale").text
     assert '<div class="board" data-board role="region" aria-label="Darbinieku kolonnas" tabindex="0">' in page
     assert '<script src="/static/board.js" defer></script>' in page
+
+
+# CR-7 #11
+def test_json_reassign_without_employee_is_json_403(client) -> None:
+    response = client.post("/uzdevumi/1/izpilditajs", data={"assignee_id": "2"}, headers=JSON,
+                           follow_redirects=False)
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+# CR-7 #14
+def test_reassign_done_task_json_code(client) -> None:
+    act_as(client, INESE)
+    client.post("/uzdevumi/7/izpildits")
+    response = client.post("/uzdevumi/7/izpilditajs", data={"assignee_id": "2"}, headers=JSON)
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "TASK_DONE"
+
+
+# CR-7 #15 (bez JS)
+def test_noop_reassign_has_no_success_notice(client) -> None:
+    act_as(client, INESE)
+    response = client.post("/uzdevumi/1/izpilditajs", data={"assignee_id": str(ANNA)},
+                           follow_redirects=False)
+    assert response.headers["location"] == "/uzdevumi/sadale#uzdevums-1"
+
+
+# CR-7 #17
+def test_reassign_buttons_have_unique_names(client) -> None:
+    act_as(client, INESE)
+    page = client.get("/uzdevumi/sadale").text
+    names = re.findall(r'Nodot<span class="visually-hidden"> citam darbiniekam: ([^<]+)</span>', page)
+    titles = re.findall(r"<h3>([^<]+)</h3>", page)
+    assert names and names == titles

@@ -585,7 +585,7 @@ def test_root_redirects_to_crm(client) -> None:
 
 
 # 43
-def test_contract_describes_exactly_the_crm_routes(tmp_path) -> None:
+def test_contract_describes_exactly_the_crm_routes() -> None:
     import yaml
     from fastapi.routing import APIRoute
 
@@ -735,3 +735,128 @@ def test_employee_dashboard_hides_institution_blocks(client) -> None:
 def test_dashboard_requires_employee(client) -> None:
     response = client.get("/kopsavilkums", follow_redirects=False)
     assert response.headers["location"] == "/sakums"
+
+
+# --- CR-7 (audits 2026-10-14) ----------------------------------------------------------
+
+# CR-7 #8
+def test_delete_contact_anonymizes_all_free_text(client, crm_db) -> None:
+    act_as(client, RUTA)
+    client.post(f"/organizacijas/{JANIS_ORG}/mijiedarbibas/jauna", data={
+        "action": "save", "kind": "zvans", "date": TODAY.isoformat(), "summary": "Arī Aija Mežule piedalījās."})
+    client.post(f"/organizacijas/{ANNA_ORG}/pieprasijumi/jauns", data={
+        "title": "Aija Mežule lūdz tikšanos", "description": "Zvanīt Aija Mežule"})
+    client.post("/uzdevumi/jauns", data={"title": "Piezvanīt Aija Mežule", "assignee_id": str(ANNA),
+                                          "due": TODAY.isoformat(), "organization_id": str(ANNA_ORG)})
+    client.post("/kontakti/1/dzest")
+    leftovers = query(crm_db, "SELECT summary FROM interactions WHERE summary LIKE '%Aija Mežule%'"
+                              " UNION ALL SELECT title || description FROM requests WHERE title || description LIKE '%Aija Mežule%'"
+                              " UNION ALL SELECT title FROM tasks WHERE title LIKE '%Aija Mežule%'")
+    assert leftovers == []
+
+
+# CR-7 #18, #19
+def test_task_done_twice_keeps_date_and_logs_request_org(client, crm_db) -> None:
+    act_as(client, ANNA)
+    client.post("/uzdevumi/3/izpildits")  # uzdevums 3 saistīts tikai ar pieprasījumu 1 (org. 1)
+    first = query(crm_db, "SELECT done_on FROM tasks WHERE id = 3")
+    with sqlite3.connect(crm_db) as conn:
+        conn.execute("UPDATE tasks SET done_on = '2026-10-01' WHERE id = 3")
+    client.post("/uzdevumi/3/izpildits")
+    assert first == [(TODAY.isoformat(),)]
+    assert query(crm_db, "SELECT done_on FROM tasks WHERE id = 3") == [("2026-10-01",)]
+    log = query(crm_db, "SELECT organization_id FROM access_log WHERE entity = 'uzdevums' AND entity_id = 3")
+    assert log == [(ANNA_ORG,)]
+
+
+# CR-7 #20
+def test_task_request_must_belong_to_chosen_org(client) -> None:
+    act_as(client, ANNA)
+    response = client.post("/uzdevumi/jauns", data={
+        "title": "x", "assignee_id": str(ANNA), "due": TODAY.isoformat(),
+        "organization_id": "2", "request_id": "1"})
+    assert response.status_code == 400
+    assert "Pieprasījums pieder citai organizācijai" in response.text
+
+
+# CR-7 #21
+def test_generate_rejects_overlong_notes(client) -> None:
+    act_as(client, ANNA)
+    response = client.post(f"/organizacijas/{ANNA_ORG}/mijiedarbibas/jauna", data={
+        "action": "generate", "kind": "zvans", "date": TODAY.isoformat(), "notes": "a. " * 3000})
+    assert response.status_code == 400
+    assert 'id="f-notes-error"' in response.text
+
+
+# CR-7 #23
+def test_dashboard_week_is_seven_days(client) -> None:
+    act_as(client, ANNA)
+    for offset, text in ((6, "Pirms sešām dienām."), (7, "Pirms septiņām dienām.")):
+        client.post(f"/organizacijas/{ANNA_ORG}/mijiedarbibas/jauna", data={
+            "action": "save", "kind": "zvans", "date": (TODAY - timedelta(days=offset)).isoformat(),
+            "summary": text})
+    block = client.get("/kopsavilkums").text.split('id="recent-title"')[1]
+    assert "Pirms sešām dienām." in block and "Pirms septiņām dienām." not in block
+
+
+# CR-7 #24
+def test_idle_employee_has_no_work_in_seed(crm_db, client) -> None:
+    assert query(crm_db, "SELECT COUNT(*) FROM interactions WHERE author_id = 22") == [(0,)]
+    assert query(crm_db, "SELECT COUNT(*) FROM tasks WHERE assignee_id = 22") == [(0,)]
+    assert query(crm_db, "SELECT COUNT(*) FROM organizations WHERE responsible_id = 22") == [(0,)]
+
+
+# CR-7 #10
+def test_crm_db_path_env_wins_over_neighbour_default(tmp_path, monkeypatch) -> None:
+    target = tmp_path / "env" / "crm.db"
+    monkeypatch.setenv("CRM_DB_PATH", str(target))
+    create_app(tmp_path / "users.db", today=lambda: TODAY)
+    assert target.exists() and not (tmp_path / "crm.db").exists()
+
+
+# --- CR-7: piekļūstamības paziņojums un atgriezeniskā saite (Direktīva 2016/2102, MK 445) ---
+
+def test_statement_has_mandatory_sections(client) -> None:
+    page = client.get("/pieklustamiba").text
+    for text in ("MK noteikumiem Nr. 445", "Uz ko attiecas", "daļēji atbilst", "EN 301 549",
+                 "Nepieejamais saturs", "Nesamērīgs slogs", "Paziņojums sagatavots 14.10.2026",
+                 "Metode: pašnovērtējums", "Atgriezeniskā saite", "Sūdzību kārtība", "Tiesībsarga birojs",
+                 'action="/pieklustamiba"'):
+        assert text in page, text
+
+
+def test_feedback_without_employee_is_stored(client, crm_db) -> None:
+    response = client.post("/pieklustamiba", data={"page": "Tāfele", "description": "Nevar nodot uzdevumu",
+                                                  "contact": ""}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/pieklustamiba?nosutits=1#atsauksmes"
+    assert query(crm_db, "SELECT page, description, contact FROM accessibility_feedback") == [
+        ("Tāfele", "Nevar nodot uzdevumu", "")]
+    assert "Paldies, ziņojums nosūtīts" in client.get("/pieklustamiba?nosutits=1").text
+
+
+@pytest.mark.parametrize("data,field", [({"description": ""}, "description"),
+                                        ({"description": "x", "contact": "nav-epasts"}, "contact")])
+def test_feedback_validation(client, data, field) -> None:
+    response = client.post("/pieklustamiba", data=data)
+    assert response.status_code == 400
+    assert f'id="f-{field}-error"' in response.text
+
+
+def test_admin_reviews_and_deletes_feedback(client, crm_db) -> None:
+    client.post("/pieklustamiba", data={"description": "Fokuss nav redzams", "contact": "a@example.com"})
+    act_as(client, ANNA)
+    assert client.get("/admin/atsauksmes").status_code == 403
+    act_as(client, RUTA)
+    page = client.get("/admin/atsauksmes").text
+    assert "Fokuss nav redzams" in page and "a@example.com" in page
+    (fid,), = query(crm_db, "SELECT id FROM accessibility_feedback")
+    assert client.post(f"/admin/atsauksmes/{fid}/dzest", follow_redirects=False).status_code == 303
+    assert query(crm_db, "SELECT COUNT(*) FROM accessibility_feedback") == [(0,)]
+    assert query(crm_db, "SELECT action, entity FROM access_log WHERE entity = 'atsauksme'") == [
+        ("dzēsa", "atsauksme")]
+
+
+@pytest.mark.parametrize("path", ["/login", "/register", "/password-reset", "/password-reset/confirm"])
+def test_cr4_pages_link_to_statement(client, path) -> None:
+    assert 'href="/pieklustamiba"' in client.get(path).text

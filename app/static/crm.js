@@ -2,6 +2,10 @@
 // navigācija mobilajā skatā ir vienkārši redzama.
 
 (() => {
+  // Mobilā izvēlne tiek paslēpta tikai tad, kad šis skripts tiešām darbojas
+  // (ja crm.js neielādējas, navigācija paliek redzama).
+  document.documentElement.dataset.navReady = "1";
+
   // Mobilā izvēlne
   const toggle = document.querySelector(".menu-toggle");
   const nav = document.getElementById("main-nav");
@@ -14,13 +18,17 @@
 
   // <details> izvēlnes: Escape aizver un atgriež fokusu, bultiņas pārvietojas pa saitēm,
   // klikšķis ārpusē aizver.
-  const menus = document.querySelectorAll("details.add-menu, details[data-menu]");
+  const menus = document.querySelectorAll("details[data-menu]");
   menus.forEach((menu) => {
     const summary = menu.querySelector("summary");
     const links = () => [...menu.querySelectorAll(".menu-list a")];
 
     menu.addEventListener("toggle", () => {
       if (menu.open) links()[0]?.focus();
+    });
+    // Fokuss iziet no izvēlnes (Tab) → aizver, lai tā neaizsedz nākamo elementu.
+    menu.addEventListener("focusout", (event) => {
+      if (menu.open && !menu.contains(event.relatedTarget)) menu.open = false;
     });
     menu.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && menu.open) {

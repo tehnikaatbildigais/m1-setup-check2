@@ -439,3 +439,85 @@ def test_html_pages_are_served(client, path) -> None:
 def test_login_and_register_pages_link_to_each_other(client) -> None:
     assert 'href="/register"' in client.get("/login").text
     assert 'href="/login"' in client.get("/register").text
+
+
+# --- Audits 2026-10-14 ----------------------------------------------------------------
+
+def test_parallel_wrong_passwords_cannot_bypass_lockout(client) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    register(client)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(lambda i: login(client, password=f"nepareiza-{i}").status_code,
+                                range(6)))
+    assert results == [401] * 6
+    # Neatkarīgi no secības konts ir bloķēts: arī pareizā parole atgriež 401.
+    assert login(client).status_code == 401
+
+
+def test_reset_link_ignores_host_header(client, caplog) -> None:
+    import app.auth as auth_module
+
+    register(client)
+    with caplog.at_level(logging.INFO, logger="app.auth"):
+        client.post("/auth/password-reset", json={"email": "janis@example.com"},
+                    headers={"host": "evil.example"})
+    assert "evil.example" not in caplog.text
+    assert f"{auth_module.PUBLIC_BASE_URL}/password-reset/confirm?token=" in caplog.text
+
+
+def test_overlong_password_is_rejected_without_hashing(client, monkeypatch) -> None:
+    import app.auth as auth_module
+
+    def no_hash(*_):
+        raise AssertionError("scrypt nedrīkst izsaukt")
+
+    register(client)  # esošs lietotājs „janis”, lai pārbaudītu arī šo pieteikšanās zaru
+    long_password = "x" * 1025
+    monkeypatch.setattr(auth_module, "hash_password", no_hash)
+    monkeypatch.setattr(auth_module, "verify_password", no_hash)
+    response = register(client, email="cits@example.com", username="cits", password=long_password)
+    assert response.status_code == 400
+    assert details(response) == [("password", "TOO_LONG")]
+    assert login(client, "janis", password=long_password).status_code == 401
+    assert login(client, "neviens", password=long_password).status_code == 401
+    confirm = client.post("/auth/password-reset/confirm",
+                          json={"token": "nav", "password": NEW_PASSWORD, "passwordConfirm": NEW_PASSWORD})
+    assert confirm.status_code == 400  # nederīgs marķieris noraidīts pirms jaukšanas
+
+
+def test_login_attempts_are_serialized(client, monkeypatch) -> None:
+    """Deterministiski: ja paroles pārbaude notiktu ārpus rakstīšanas transakcijas,
+    divi paralēli mēģinājumi pārklātos (lēnā pārbaude to garantē)."""
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    import app.auth as auth_module
+
+    register(client)
+    real_verify = auth_module.verify_password
+    active, peak, lock = 0, 0, threading.Lock()
+
+    def slow_verify(password, stored):
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(0.2)
+        try:
+            return real_verify(password, stored)
+        finally:
+            with lock:
+                active -= 1
+
+    monkeypatch.setattr(auth_module, "verify_password", slow_verify)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(lambda i: login(client, password=f"nepareiza-{i}"), range(4)))
+    assert peak == 1
+
+
+def test_invalid_credentials_error_is_not_shared() -> None:
+    from app.auth import invalid_credentials
+
+    assert invalid_credentials() is not invalid_credentials()

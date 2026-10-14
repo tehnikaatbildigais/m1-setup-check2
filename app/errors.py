@@ -59,6 +59,11 @@ def wants_html(request: Request) -> bool:
     return "text/html" in request.headers.get("accept", "")
 
 
+def wants_json(request: Request) -> bool:
+    """CR-6: `fetch` no JavaScript prasa JSON; pārlūka navigācija prasa HTML."""
+    return "application/json" in request.headers.get("accept", "") and not wants_html(request)
+
+
 def _html_error(request: Request, status: int, message: str):
     from .crm.web import render  # CRM veidnes ielādē tikai HTML atbildēm
 
@@ -76,14 +81,17 @@ async def _http_error(request: Request, exc: StarletteHTTPException):
     return error_response(exc.status_code, HTTP_CODES.get(exc.status_code, "HTTP_ERROR"), message)
 
 
-async def _needs_employee(_: Request, __: Exception):
+async def _needs_employee(request: Request, __: Exception):
+    # JSON klientam pāradresācija uz HTML lapu izskatītos pēc veiksmes (fetch seko 303).
+    if wants_json(request):
+        return error_response(403, "FORBIDDEN", "Darbinieks nav izvēlēts; atver sākumlapu")
     return RedirectResponse("/sakums", status_code=303)
 
 
 async def _server_error(request: Request, exc: Exception):
     logger.error("Neapstrādāta kļūda: %s", type(exc).__name__)
     if wants_html(request):
-        return _html_error(request, 500, "Servera kļūda. Mēģini vēlreiz vēlāk.")
+        return _html_error(request, 500, "Servera kļūda. Mēģini vēlreiz vēlāk")
     return error_response(500, "INTERNAL_ERROR", "Internal server error")
 
 
