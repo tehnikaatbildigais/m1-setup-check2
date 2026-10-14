@@ -1,0 +1,4 @@
+# CR-5: lietotnes atkarības papildus kursa konteinera attēlam
+jinja2==3.1.6
+python-multipart==0.0.32
+anthropic==1.13.0

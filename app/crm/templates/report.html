@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_summary, field, late_tag, status_tag %}
+{% block title %}Pārskats{% endblock %}
+{% block content %}
+<h1>Pārskats</h1>
+{{ error_summary(errors) }}
+<form method="get" action="/parskats" novalidate class="filters">
+  {{ field("no", "No", values, errors, type="date") }}
+  {{ field("lidz", "Līdz", values, errors, type="date") }}
+  <button type="submit" class="secondary">Rādīt periodu</button>
+</form>
+{% if not errors %}
+<p class="lead">Periodā reģistrētas {{ total }} mijiedarbības.</p>
+
+<section aria-labelledby="activity-title">
+  <h2 id="activity-title">Aktivitāte pa darbiniekiem</h2>
+  {% if activity %}
+  <figure class="chart-figure">
+    <div class="chart-scroll" role="region" aria-label="Diagramma: mijiedarbības pa darbiniekiem" tabindex="0">{{ svg | safe }}</div>
+    <figcaption>Mijiedarbību skaits, ko darbinieks reģistrējis periodā. Tie paši dati tabulā zemāk.</figcaption>
+  </figure>
+  <div class="table-wrap" role="region" aria-labelledby="activity-caption" tabindex="0">
+  <table class="numeric">
+    <caption id="activity-caption">Mijiedarbības pa darbiniekiem</caption>
+    <thead><tr><th scope="col">Darbinieks</th><th scope="col">Mijiedarbības</th></tr></thead>
+    <tbody>{% for a in activity %}<tr><th scope="row">{{ a.name }}</th><td>{{ a.n }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p class="empty">Periodā mijiedarbību nav.</p>{% endif %}
+</section>
+
+<section aria-labelledby="late-title">
+  <h2 id="late-title">Kavētie pieprasījumi</h2>
+  <p class="hint">Pieprasījumi ar termiņu periodā, kas atbildēti pēc termiņa vai vēl nav atbildēti.</p>
+  {% if late %}
+  <div class="table-wrap" role="region" aria-labelledby="late-caption" tabindex="0">
+  <table>
+    <caption id="late-caption">{{ late | length }} kavēti pieprasījumi</caption>
+    <thead><tr><th scope="col">Temats</th><th scope="col">Organizācija</th><th scope="col">Termiņš</th><th scope="col">Statuss</th></tr></thead>
+    <tbody>{% for r in late %}<tr><th scope="row"><a href="/pieprasijumi/{{ r.id }}">{{ r.title }}</a></th><td>{{ r.org_name }}</td><td>{{ r.deadline | lvdate }} {{ late_tag() }}</td><td>{{ status_tag(r.status) }}{% if r.answered_on %} {{ r.answered_on | lvdate }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p class="empty">Periodā kavētu pieprasījumu nav.</p>{% endif %}
+</section>
+
+<section aria-labelledby="top-title">
+  <h2 id="top-title">Aktīvākās organizācijas</h2>
+  {% if top_orgs %}
+  <div class="table-wrap" role="region" aria-labelledby="top-caption" tabindex="0">
+  <table class="numeric">
+    <caption id="top-caption">Organizācijas ar visvairāk mijiedarbībām periodā</caption>
+    <thead><tr><th scope="col">Organizācija</th><th scope="col">Mijiedarbības</th></tr></thead>
+    <tbody>{% for o in top_orgs %}<tr><th scope="row"><a href="/organizacijas/{{ o.id }}">{{ o.name }}</a></th><td>{{ o.n }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p class="empty">Periodā aktivitātes nav.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

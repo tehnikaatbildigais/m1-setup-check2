@@ -1,0 +1,3 @@
+-r requirements.txt
+# CR-5: pieejamības tests (tests/a11y_check.py); pēc tam: playwright install chromium
+playwright==1.64.0

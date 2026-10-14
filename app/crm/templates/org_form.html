@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_summary, field, select %}
+{% block title %}{% if org %}Labot organizāciju{% else %}Jauna organizācija{% endif %}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="{{ '/organizacijas/%d' % org.id if org else '/organizacijas' }}">{{ org.name if org else 'Organizācijas' }}</a></p>
+<h1>{% if org %}Labot organizāciju{% else %}Jauna organizācija{% endif %}</h1>
+{{ error_summary(errors) }}
+<form method="post" novalidate class="narrow">
+  {{ field("name", "Nosaukums", values, errors) }}
+  {{ field("reg_nr", "Reģistrācijas numurs", values, errors, hint="11 cipari.", inputmode="numeric") }}
+  {{ select("type", "Veids", values, errors, ORG_TYPES.items(), placeholder="Izvēlies") }}
+  <div class="field">
+    <label for="f-responsible_id">Atbildīgais darbinieks <span class="req">(obligāts)</span></label>
+    {% if errors.responsible_id %}<p class="field-error" id="f-responsible_id-error">{{ errors.responsible_id }}</p>{% endif %}
+    <select id="f-responsible_id" name="responsible_id" required{% if errors.responsible_id %} aria-invalid="true" aria-describedby="f-responsible_id-error"{% endif %}>
+      {% for e in employees %}
+      <option value="{{ e.id }}"{% if values.get('responsible_id') == e.id | string %} selected{% endif %}>{{ e.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="actions">
+    <button type="submit">{% if org %}Saglabāt izmaiņas{% else %}Pievienot organizāciju{% endif %}</button>
+    <a href="{{ '/organizacijas/%d' % org.id if org else '/organizacijas' }}">Atcelt</a>
+  </div>
+</form>
+{% endblock %}

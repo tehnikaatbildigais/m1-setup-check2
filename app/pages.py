@@ -21,7 +21,8 @@ def _page(name: str) -> FileResponse:
 
 @router.get("/")
 def index() -> RedirectResponse:
-    return RedirectResponse("/login", status_code=303)
+    # CR-5: galvenā lietotne ir CRM; CR-4 lapas paliek pieejamas pēc sava ceļa.
+    return RedirectResponse("/sakums", status_code=303)
 
 
 @router.get("/login")

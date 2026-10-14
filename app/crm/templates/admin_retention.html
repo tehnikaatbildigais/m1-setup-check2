@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Glabāšanas termiņš{% endblock %}
+{% block content %}
+<h1>Administrēšana</h1>
+{% include "_admin_nav.html" %}
+<h2>Beidzies glabāšanas termiņš</h2>
+<p class="lead">Kontaktpersonas, ar kurām pēdējā saziņa bija pirms {{ cutoff | lvdate }} (vairāk nekā 2 gadus atpakaļ). Sistēma tās nedzēš automātiski: izvērtē un dzēs manuāli.</p>
+{% if expired %}
+<div class="table-wrap" role="region" aria-labelledby="ret-caption" tabindex="0">
+<table>
+  <caption id="ret-caption">{{ expired | length }} kontaktpersonas ar beigušos glabāšanas termiņu</caption>
+  <thead><tr><th scope="col">Kontaktpersona</th><th scope="col">Organizācija</th><th scope="col">Pēdējā saziņa</th><th scope="col">Darbība</th></tr></thead>
+  <tbody>
+  {% for c in expired %}
+    <tr>
+      <th scope="row">{{ c.name }}</th>
+      <td><a href="/organizacijas/{{ c.organization_id }}">{{ c.org_name }}</a></td>
+      <td>{{ c.last_contact | lvdate }} <span class="tag tag-late">Termiņš beidzies</span></td>
+      <td><a href="/kontakti/{{ c.id }}/dzest">Dzēst<span class="visually-hidden"> {{ c.name }}</span></a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="empty">Nav kontaktpersonu ar beigušos glabāšanas termiņu.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Meklēšana{% endblock %}
+{% block content %}
+<h1>Meklēšana</h1>
+<form method="get" action="/meklet" role="search" class="filters">
+  <div class="field inline grow">
+    <label for="f-q">Organizācija, kontaktpersona vai pieprasījums</label>
+    <input id="f-q" name="q" type="search" value="{{ q }}">
+  </div>
+  <button type="submit">Meklēt</button>
+</form>
+{% if q %}
+  {% if results %}
+  <div class="table-wrap" role="region" aria-labelledby="search-caption" tabindex="0">
+  <table>
+    <caption id="search-caption">Meklēšanas rezultāti vaicājumam „{{ q }}”: {{ total }}{% if total > results | length %}, rādīti pirmie {{ results | length }}{% endif %}</caption>
+    <thead><tr><th scope="col">Tips</th><th scope="col">Nosaukums</th><th scope="col">Organizācija</th></tr></thead>
+    <tbody>
+    {% for r in results %}
+      <tr><td>{{ r.type }}</td><th scope="row"><a href="{{ r.url }}">{{ r.name }}</a></th><td>{{ r.org }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty" role="status">Nekas netika atrasts vaicājumam „{{ q }}”. Pārbaudi rakstību vai <a href="/organizacijas/jauna">izveido organizāciju</a>.</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

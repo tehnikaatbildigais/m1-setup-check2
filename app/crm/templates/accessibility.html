@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Piekļūstamības paziņojums{% endblock %}
+{% block content %}
+<h1>Piekļūstamības paziņojums</h1>
+<p class="lead">Ezermalas CRM mērķis ir atbilst standartam EN 301 549 un WCAG 2.2 AA līmenim. Šis paziņojums apraksta, kas ir pārbaudīts un kas vēl nav.</p>
+
+<section aria-labelledby="status">
+  <h2 id="status">Atbilstības statuss</h2>
+  <p><strong>Daļēji atbilst.</strong> Automātiskās pārbaudes neatrada pārkāpumus, bet manuālā pārbaude ar ekrānlasītāju vēl nav veikta.</p>
+</section>
+
+<section aria-labelledby="tested">
+  <h2 id="tested">Kā pārbaudīts</h2>
+  <p>Pārbaudes datums: 14.10.2026. Rīki: axe-core 4.10.3 un Playwright ar Chromium (tests/a11y_check.py). Pārbaudītas 16 lapas galvenajā ceļā, katra gaišajā un tumšajā režīmā.</p>
+  <div class="table-wrap" role="region" aria-labelledby="results-caption" tabindex="0">
+  <table>
+    <caption id="results-caption">Testu rezultāti</caption>
+    <thead><tr><th scope="col">Pārbaude</th><th scope="col">Rezultāts</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">axe-core, WCAG 2.0–2.2 A un AA noteikumi</th><td>0 pārkāpumu (nav arī minor vai moderate)</td></tr>
+      <tr><th scope="row">axe-core formā ar kļūdām</th><td>0 pārkāpumu; fokuss pāriet uz kļūdu kopsavilkumu</td></tr>
+      <tr><th scope="row">Krāsu kontrasts, ko axe nevarēja novērtēt (teksta lauki MI formā, diagrammas teksti)</th><td>Izrēķināts manuāli: mazākais kontrasts 5,46:1 (pelēks teksts uz fona), prasība 4,5:1</td></tr>
+      <tr><th scope="row">320 px platums un 200 % mērogs (640 px)</th><td>Nav horizontālās ritināšanas nevienā no 16 lapām; platas tabulas ritina savā laukā</td></tr>
+      <tr><th scope="row">Tastatūra</th><td>Pirmais Tab fokuss ir „Pāriet uz saturu”; darbinieka izvēle un organizācijas atvēršana izdodas tikai ar tastatūru</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="fixed">
+  <h2 id="fixed">Testēšanā atrastās un novērstās problēmas</h2>
+  <ul>
+    <li>320 px platumā tabulas ar ekrānā neredzamiem tekstiem (piem., „Dzēst” ar kontaktpersonas vārdu) paplašināja visu lapu, un parādījās horizontālā ritināšana. Novērsts 14.10.2026.</li>
+    <li>Pēc MI kopsavilkuma ģenerēšanas fokuss palika lapas sākumā. Tagad fokuss pāriet uz ģenerēto kopsavilkumu.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="known">
+  <h2 id="known">Zināmie ierobežojumi</h2>
+  <ul>
+    <li>Nav veikta pārbaude ar NVDA vai citu ekrānlasītāju, un nav testēts ar reāliem lietotājiem.</li>
+    <li>200 % mērogs pārbaudīts, simulējot 640 px platu logu, nevis ar pārlūka tālummaiņu.</li>
+    <li>Mijiedarbības formā, nospiežot Enter datuma vai izvēles laukā, tiek nospiesta pirmā poga „Ģenerēt kopsavilkumu”, nevis „Saglabāt”.</li>
+    <li>Datuma lauku formāts atkarīgs no pārlūka valodas iestatījumiem.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="feedback">
+  <h2 id="feedback">Atsauksmes</h2>
+  <p>Šī ir mācību sistēma. Ja pamani piekļūstamības problēmu, pieraksti, kurā lapā un ko darīji, un nodod to sistēmas administratoram.</p>
+</section>
+{% endblock %}

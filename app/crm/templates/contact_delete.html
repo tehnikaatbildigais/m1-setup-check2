@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Dzēst kontaktpersonu{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/organizacijas/{{ org.id }}">{{ org.name }}</a></p>
+<h1>Dzēst kontaktpersonu {{ contact.name }}?</h1>
+<p class="lead">Kontaktpersona tiks dzēsta neatgriezeniski. Mijiedarbībās viņas vārds tiks aizstāts ar „Dzēsta kontaktpersona”. Piekļuves žurnālā paliks ieraksts par dzēšanu bez personas datiem.</p>
+<form method="post" class="actions">
+  <button type="submit" class="danger">Dzēst kontaktpersonu</button>
+  <a href="/organizacijas/{{ org.id }}#kontakti">Atcelt</a>
+</form>
+{% endblock %}

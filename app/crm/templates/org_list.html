@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Organizācijas{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Organizācijas</h1>
+  <a class="button" href="/organizacijas/jauna">Pievienot organizāciju</a>
+</div>
+<form method="get" action="/organizacijas" class="filters">
+  <div class="check">
+    <input type="checkbox" id="f-mans" name="mans" value="1"{% if mans %} checked{% endif %}>
+    <label for="f-mans">Tikai organizācijas, kurās esmu atbildīgais</label>
+  </div>
+  <button type="submit" class="secondary">Atlasīt</button>
+</form>
+<div class="table-wrap" role="region" aria-labelledby="orgs-caption" tabindex="0">
+<table>
+  <caption id="orgs-caption">{{ orgs | length }} organizācijas{% if mans %}, kurās esmu atbildīgais{% endif %}</caption>
+  <thead><tr>
+    <th scope="col">Nosaukums</th><th scope="col">Reģ. nr.</th><th scope="col">Veids</th><th scope="col">Atbildīgais</th>
+  </tr></thead>
+  <tbody>
+  {% for o in orgs %}
+    <tr>
+      <th scope="row"><a href="/organizacijas/{{ o.id }}">{{ o.name }}</a></th>
+      <td>{{ o.reg_nr }}</td>
+      <td>{{ ORG_TYPES[o.type] }}</td>
+      <td>{{ o.responsible }}{% if o.responsible_id == employee.id %} <span class="tag tag-mine">Mana</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

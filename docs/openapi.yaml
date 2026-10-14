@@ -24,6 +24,11 @@ tags:
     description: Tehniskie galapunkti (R4)
   - name: Lietotāji
     description: Reģistrācija, pieteikšanās un paroles atjaunošana (CR-4)
+  - name: CRM
+    description: |
+      Ezermalas CRM HTML ekrāni (CR-5). Servera pusē renderēts HTML, formas
+      `application/x-www-form-urlencoded`. Kļūdas pārlūkam ir HTML lapas, citiem
+      klientiem kopīgā `Error` shēma.
 
 paths:
   /health:
@@ -284,6 +289,893 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /:
+    get:
+      tags: [CRM]
+      operationId: crmRoot
+      summary: "Pāradresē uz CRM sākumlapu"
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /sakums:
+    get:
+      tags: [CRM]
+      operationId: crmHome
+      summary: "Sākumlapa: darbinieka izvēle (N3, mācību režīms)"
+      description: |
+        Darbinieku saraksts ar lomām, bez paroles.
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmChooseEmployee
+      summary: "Izvēlēties darbinieku"
+      description: |
+        Saglabā izvēli sīkdatnē `crm_darbinieks` un pāradresē uz `/uzdevumi`.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmployeeChoiceForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOtherWithCookie'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /organizacijas:
+    get:
+      tags: [CRM]
+      operationId: crmOrgList
+      summary: "Organizāciju saraksts (F1)"
+      description: |
+        Visas organizācijas; savējās atzīmētas ar tekstu „Mana”.
+      parameters:
+        - name: 'mans'
+          in: query
+          required: false
+          description: "`1` — tikai organizācijas, kurās esmu atbildīgais"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /organizacijas/jauna:
+    get:
+      tags: [CRM]
+      operationId: crmOrgNewForm
+      summary: "Jaunas organizācijas forma (F1)"
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmOrgCreate
+      summary: "Izveidot organizāciju (F1)"
+      description: |
+        Reģ. nr.: 11 cipari, unikāls. Veids: `uznemums`, `nvo`, `pasvaldiba`.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrganizationForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /organizacijas/{orgId}:
+    get:
+      tags: [CRM]
+      operationId: crmOrgCard
+      summary: "Organizācijas kartīte (F1–F5)"
+      description: |
+        Kontaktpersonas, mijiedarbību hronoloģija (jaunākā augšā), pieprasījumi, uzdevumi. Atvēršana tiek ierakstīta piekļuves žurnālā (N2).
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /organizacijas/{orgId}/labot:
+    get:
+      tags: [CRM]
+      operationId: crmOrgEditForm
+      summary: "Organizācijas labošanas forma"
+      description: |
+        Atbildīgais darbinieks, vadītājs vai administrators.
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmOrgUpdate
+      summary: "Saglabāt organizāciju"
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrganizationForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /organizacijas/{orgId}/kontakti/jauns:
+    get:
+      tags: [CRM]
+      operationId: crmContactNewForm
+      summary: "Jaunas kontaktpersonas forma (F2)"
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmContactCreate
+      summary: "Pievienot kontaktpersonu (F2)"
+      description: |
+        Tālrunis: 8 cipari, var sākt ar `+371`. Tikai sadarbībai vajadzīgie lauki (VDAR).
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ContactForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /kontakti/{contactId}/labot:
+    get:
+      tags: [CRM]
+      operationId: crmContactEditForm
+      summary: "Kontaktpersonas labošanas forma"
+      parameters:
+        - name: 'contactId'
+          in: path
+          required: true
+          description: "Kontaktpersonas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmContactUpdate
+      summary: "Saglabāt kontaktpersonu"
+      parameters:
+        - name: 'contactId'
+          in: path
+          required: true
+          description: "Kontaktpersonas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ContactForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /kontakti/{contactId}/dzest:
+    get:
+      tags: [CRM]
+      operationId: crmContactDeleteConfirm
+      summary: "Kontaktpersonas dzēšanas apstiprinājums (N2)"
+      description: |
+        Tikai administrators.
+      parameters:
+        - name: 'contactId'
+          in: path
+          required: true
+          description: "Kontaktpersonas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmContactDelete
+      summary: "Dzēst kontaktpersonu (N2)"
+      description: |
+        Tikai administrators. Mijiedarbībās vārds tiek aizstāts ar „Dzēsta kontaktpersona”; piekļuves žurnālā ieraksts bez personas datiem.
+      parameters:
+        - name: 'contactId'
+          in: path
+          required: true
+          description: "Kontaktpersonas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /organizacijas/{orgId}/mijiedarbibas/jauna:
+    get:
+      tags: [CRM]
+      operationId: crmInteractionNewForm
+      summary: "Jaunas mijiedarbības forma (F3)"
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmInteractionCreate
+      summary: "Ģenerēt kopsavilkumu vai saglabāt mijiedarbību (F3, MI-1)"
+      description: |
+        `action=generate`: atgriež formu (200) ar ≤ 3 teikumu kopsavilkumu un nākamo soli, marķētiem „Ģenerēts ar MI”; nekas netiek saglabāts. Bez `ANTHROPIC_API_KEY` izmanto imitāciju; Claude kļūdas gadījumā arī imitāciju ar paziņojumu.
+
+        `action=save`: saglabā. Ja `ai_generated=1`, ieraksts tiek marķēts un apstiprinātājs ir pašreizējais darbinieks. Brīvās piezīmes (`notes`) netiek saglabātas.
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InteractionForm'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /pieprasijumi:
+    get:
+      tags: [CRM]
+      operationId: crmRequestList
+      summary: "Pieprasījumu saraksts (F4)"
+      description: |
+        Kavēts: termiņš pagājis un statuss nav `atbildets`; atzīmēts ar tekstu „Kavēts”.
+      parameters:
+        - name: 'statuss'
+          in: query
+          required: false
+          description: "`jauns`, `darba` vai `atbildets`"
+          schema:
+            type: string
+        - name: 'kavetie'
+          in: query
+          required: false
+          description: "`1` — tikai kavētie"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /organizacijas/{orgId}/pieprasijumi/jauns:
+    get:
+      tags: [CRM]
+      operationId: crmRequestNewForm
+      summary: "Jauna pieprasījuma forma (F4)"
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmRequestCreate
+      summary: "Reģistrēt pieprasījumu (F4)"
+      description: |
+        Statuss `jauns`; termiņš = šodiena + 30 dienas, nemaināms.
+      parameters:
+        - name: 'orgId'
+          in: path
+          required: true
+          description: "Organizācijas ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequestForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /pieprasijumi/{requestId}:
+    get:
+      tags: [CRM]
+      operationId: crmRequestDetail
+      summary: "Pieprasījuma kartīte (F4)"
+      parameters:
+        - name: 'requestId'
+          in: path
+          required: true
+          description: "Pieprasījuma ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /pieprasijumi/{requestId}/statuss:
+    post:
+      tags: [CRM]
+      operationId: crmRequestStatus
+      summary: "Mainīt pieprasījuma statusu (F4)"
+      description: |
+        Tikai uz nākamo: `jauns` → `darba` → `atbildets`; cita pāreja → 400.
+      parameters:
+        - name: 'requestId'
+          in: path
+          required: true
+          description: "Pieprasījuma ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatusForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /uzdevumi:
+    get:
+      tags: [CRM]
+      operationId: crmMyTasks
+      summary: "Mani uzdevumi šodien (F5)"
+      description: |
+        Neizpildītie uzdevumi ar termiņu šodien vai kavētie.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /uzdevumi/jauns:
+    get:
+      tags: [CRM]
+      operationId: crmTaskNewForm
+      summary: "Jauna uzdevuma forma (F5)"
+      parameters:
+        - name: 'organizacija'
+          in: query
+          required: false
+          description: "Organizācijas ID (filtrs vai sākumvērtība)"
+          schema:
+            type: string
+        - name: 'pieprasijums'
+          in: query
+          required: false
+          description: "Pieprasījuma ID (sākumvērtība)"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmTaskCreate
+      summary: "Pievienot uzdevumu (F5)"
+      description: |
+        Jābūt saistītam ar organizāciju vai pieprasījumu.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /uzdevumi/{taskId}/izpildits:
+    post:
+      tags: [CRM]
+      operationId: crmTaskDone
+      summary: "Atzīmēt uzdevumu kā izpildītu (F5)"
+      description: |
+        Izpildītājs, vadītājs vai administrators.
+      parameters:
+        - name: 'taskId'
+          in: path
+          required: true
+          description: "Uzdevuma ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /meklet:
+    get:
+      tags: [CRM]
+      operationId: crmSearch
+      summary: "Meklēšana (F6)"
+      description: |
+        Viens lauks pāri organizācijām, kontaktpersonām un pieprasījumiem; rezultāti tabulā ar `caption` un `th scope`.
+      parameters:
+        - name: 'q'
+          in: query
+          required: false
+          description: "Meklējamais teksts; reģistrnejutīgs"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /parskats:
+    get:
+      tags: [CRM]
+      operationId: crmReport
+      summary: "Pārskats vadītājam (F7)"
+      description: |
+        Aktivitāte pa darbiniekiem (SVG diagramma + tā pati tabula), kavētie pieprasījumi, aktīvākās organizācijas. Vadītājs vai administrators. `no` > `lidz` → 400.
+      parameters:
+        - name: 'no'
+          in: query
+          required: false
+          description: "Perioda sākums, GGGG-MM-DD; noklusējums šodiena − 30 dienas"
+          schema:
+            type: string
+        - name: 'lidz'
+          in: query
+          required: false
+          description: "Perioda beigas, GGGG-MM-DD; noklusējums šodiena"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/lomas:
+    get:
+      tags: [CRM]
+      operationId: crmAdminRoles
+      summary: "Darbinieku lomas (N3)"
+      description: |
+        Tikai administrators.
+      parameters:
+        - name: 'saglabats'
+          in: query
+          required: false
+          description: "Saglabātā darbinieka ID (paziņojumam)"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/lomas/{employeeId}:
+    post:
+      tags: [CRM]
+      operationId: crmAdminSetRole
+      summary: "Mainīt darbinieka lomu (N3)"
+      description: |
+        Tikai administrators. Pēdējo administratoru nevar pazemināt (400).
+      parameters:
+        - name: 'employeeId'
+          in: path
+          required: true
+          description: "Darbinieka ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/glabasana:
+    get:
+      tags: [CRM]
+      operationId: crmAdminRetention
+      summary: "Kontakti ar beigušos glabāšanas termiņu (N2)"
+      description: |
+        Pēdējā saziņa senāka par 2 gadiem. Netiek dzēsti automātiski. Tikai administrators.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/zurnals:
+    get:
+      tags: [CRM]
+      operationId: crmAdminAccessLog
+      summary: "Piekļuves žurnāls (N2)"
+      description: |
+        Kas, ko, kad skatīja vai mainīja. Filtrējams. Tikai administrators.
+      parameters:
+        - name: 'darbinieks'
+          in: query
+          required: false
+          description: "Darbinieka ID (filtrs)"
+          schema:
+            type: string
+        - name: 'organizacija'
+          in: query
+          required: false
+          description: "Organizācijas ID (filtrs vai sākumvērtība)"
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /pieklustamiba:
+    get:
+      tags: [CRM]
+      operationId: crmAccessibility
+      summary: "Piekļūstamības paziņojums (F8)"
+      description: |
+        Pieejams bez darbinieka izvēles.
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
 components:
   schemas:
     Health:
@@ -481,6 +1373,128 @@ components:
         message:
           type: string
 
+    OrganizationForm:
+      type: object
+      required: [name, reg_nr, type, responsible_id]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        reg_nr:
+          type: string
+          pattern: '^[0-9]{11}$'
+          description: Unikāls
+        type:
+          type: string
+          enum: [uznemums, nvo, pasvaldiba]
+        responsible_id:
+          type: integer
+
+    ContactForm:
+      type: object
+      required: [name, position, email, phone, basis, basis_date]
+      properties:
+        name:
+          type: string
+        position:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          pattern: '^(\+371)?[0-9]{8}$'
+        basis:
+          type: string
+          description: Datu apstrādes tiesiskais pamats (VDAR 6. pants)
+          enum: [Leģitīmās intereses, Līgums, Piekrišana, Juridisks pienākums, Sabiedrības intereses]
+        basis_date:
+          type: string
+          format: date
+
+    InteractionForm:
+      type: object
+      required: [action, kind, date]
+      properties:
+        action:
+          type: string
+          enum: [generate, save]
+        kind:
+          type: string
+          enum: [zvans, epasts, sanaksme]
+        date:
+          type: string
+          format: date
+        participants:
+          type: array
+          description: Organizācijas kontaktpersonu ID
+          items:
+            type: integer
+        notes:
+          type: string
+          maxLength: 8000
+          description: Brīvas piezīmes MI kopsavilkumam; netiek saglabātas
+        summary:
+          type: string
+          maxLength: 2000
+          description: Obligāts, ja `action=save`
+        next_step:
+          type: string
+          maxLength: 500
+        ai_generated:
+          type: string
+          enum: ['', '1']
+
+    RequestForm:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          maxLength: 4000
+
+    StatusForm:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [darba, atbildets]
+
+    TaskForm:
+      type: object
+      required: [title, assignee_id, due]
+      description: Jānorāda `organization_id`, `request_id` vai abi.
+      properties:
+        title:
+          type: string
+        assignee_id:
+          type: integer
+        due:
+          type: string
+          format: date
+        organization_id:
+          type: integer
+        request_id:
+          type: integer
+
+    EmployeeChoiceForm:
+      type: object
+      required: [employee_id]
+      properties:
+        employee_id:
+          type: integer
+
+    RoleForm:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [darbinieks, vaditajs, administrators]
+
     Error:
       type: object
       description: Vienota kļūdu shēma visiem galapunktiem
@@ -511,6 +1525,15 @@ components:
                   issue:
                     type: string
                     example: INVALID_FORMAT
+
+  parameters:
+    CrmEmployeeCookie:
+      name: crm_darbinieks
+      in: cookie
+      required: false
+      description: Izvēlētā darbinieka ID (mācību režīms, N3). Ja nav, → 303 uz `/sakums`.
+      schema:
+        type: integer
 
   responses:
     ValidationError:
@@ -594,3 +1617,79 @@ components:
             error:
               code: INTERNAL_ERROR
               message: Internal server error
+    HtmlPage:
+      description: HTML lapa (servera pusē renderēta, bez JavaScript)
+      content:
+        text/html:
+          schema:
+            type: string
+    SeeOther:
+      description: |
+        Pāradresācija (POST → redirect → GET). Ja darbinieks nav izvēlēts,
+        jebkura CRM lapa pāradresē uz `/sakums`.
+      headers:
+        Location:
+          schema:
+            type: string
+    SeeOtherWithCookie:
+      description: Darbinieks izvēlēts; pāradresācija uz `/uzdevumi`
+      headers:
+        Location:
+          schema:
+            type: string
+        Set-Cookie:
+          description: '`crm_darbinieks=<id>; HttpOnly; Path=/; SameSite=lax`'
+          schema:
+            type: string
+    HtmlBadRequest:
+      description: "Kļūdaina ievade. Pārlūks (`Accept: text/html`) saņem formu atkārtoti ar kļūdu tekstiem pie laukiem; citi klienti saņem `Error`."
+      content:
+        text/html:
+          schema:
+            type: string
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: "Request validation failed"
+    HtmlForbidden:
+      description: "Lomai nav tiesību veikt šo darbību (N3)"
+      content:
+        text/html:
+          schema:
+            type: string
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: "Nav tiesību veikt šo darbību"
+    HtmlNotFound:
+      description: "Ieraksts vai lapa nav atrasta"
+      content:
+        text/html:
+          schema:
+            type: string
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: "Ieraksts nav atrasts"
+    HtmlServerError:
+      description: "Servera iekšēja kļūda. Atbildē nav ievades datu."
+      content:
+        text/html:
+          schema:
+            type: string
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: "Internal server error"

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Lomas{% endblock %}
+{% block content %}
+<h1>Administrēšana</h1>
+{% include "_admin_nav.html" %}
+<h2>Lomas</h2>
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+{% if saved %}<p class="notice" role="status">Loma saglabāta.</p>{% endif %}
+<div class="table-wrap" role="region" aria-labelledby="roles-caption" tabindex="0">
+<table>
+  <caption id="roles-caption">{{ employees | length }} darbinieki</caption>
+  <thead><tr><th scope="col">Darbinieks</th><th scope="col">Loma</th></tr></thead>
+  <tbody>
+  {% for e in employees %}
+    <tr>
+      <th scope="row">{{ e.name }}</th>
+      <td>
+        <form method="post" action="/admin/lomas/{{ e.id }}" class="inline-form">
+          <label for="role-{{ e.id }}" class="visually-hidden">{{ e.name }} loma</label>
+          <select id="role-{{ e.id }}" name="role">
+            {% for value, label in ROLES.items() %}<option value="{{ value }}"{% if e.role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="secondary">Saglabāt<span class="visually-hidden"> {{ e.name }} lomu</span></button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_summary, field %}
+{% block title %}Jauns uzdevums{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/uzdevumi">Mani uzdevumi</a></p>
+<h1>Jauns uzdevums</h1>
+<p class="lead">Uzdevumam jābūt saistītam ar organizāciju, pieprasījumu vai abiem.</p>
+{{ error_summary(errors) }}
+<form method="post" action="/uzdevumi/jauns" novalidate class="narrow">
+  {{ field("title", "Uzdevums", values, errors) }}
+  <div class="field">
+    <label for="f-assignee_id">Izpildītājs <span class="req">(obligāts)</span></label>
+    {% if errors.assignee_id %}<p class="field-error" id="f-assignee_id-error">{{ errors.assignee_id }}</p>{% endif %}
+    <select id="f-assignee_id" name="assignee_id" required{% if errors.assignee_id %} aria-invalid="true" aria-describedby="f-assignee_id-error"{% endif %}>
+      {% for e in employees %}<option value="{{ e.id }}"{% if values.get('assignee_id') == e.id | string %} selected{% endif %}>{{ e.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {{ field("due", "Termiņš", values, errors, type="date") }}
+  <div class="field">
+    <label for="f-organization_id">Organizācija</label>
+    {% if errors.organization_id %}<p class="field-error" id="f-organization_id-error">{{ errors.organization_id }}</p>{% endif %}
+    <select id="f-organization_id" name="organization_id"{% if errors.organization_id %} aria-invalid="true" aria-describedby="f-organization_id-error"{% endif %}>
+      <option value="">Nav</option>
+      {% for o in orgs %}<option value="{{ o.id }}"{% if values.get('organization_id') == o.id | string %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="f-request_id">Pieprasījums</label>
+    {% if errors.request_id %}<p class="field-error" id="f-request_id-error">{{ errors.request_id }}</p>{% endif %}
+    <select id="f-request_id" name="request_id"{% if errors.request_id %} aria-invalid="true" aria-describedby="f-request_id-error"{% endif %}>
+      <option value="">Nav</option>
+      {% for r in requests %}<option value="{{ r.id }}"{% if values.get('request_id') == r.id | string %} selected{% endif %}>{{ r.org_name }}: {{ r.title }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="actions">
+    <button type="submit">Pievienot uzdevumu</button>
+    <a href="/uzdevumi">Atcelt</a>
+  </div>
+</form>
+{% endblock %}

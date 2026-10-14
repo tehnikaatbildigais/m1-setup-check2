@@ -1,0 +1,67 @@
+{% macro plural_errors(n) -%}
+{%- if n % 10 == 1 and n % 100 != 11 -%}{{ n }} kļūda{%- else -%}{{ n }} kļūdas{%- endif -%}
+{%- endmacro %}
+
+{% macro error_summary(errors) %}
+{% if errors %}
+<div class="error-summary" role="alert" tabindex="-1" autofocus aria-labelledby="error-summary-title">
+  <h2 id="error-summary-title">Formā ir {{ plural_errors(errors | length) }}</h2>
+  <ul>
+    {% for field, message in errors.items() %}
+    <li><a href="#f-{{ field }}">{{ message }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro label_for(name, label, required) -%}
+<label for="f-{{ name }}">{{ label }}{% if required %} <span class="req">(obligāts)</span>{% endif %}</label>
+{%- endmacro %}
+
+{% macro describe(name, hint, errors) -%}
+{%- set ids = [] -%}
+{%- if hint %}{% set ids = ids + ["f-" ~ name ~ "-hint"] %}{% endif -%}
+{%- if errors.get(name) %}{% set ids = ids + ["f-" ~ name ~ "-error"] %}{% endif -%}
+{%- if ids %} aria-describedby="{{ ids | join(' ') }}"{% endif -%}
+{%- if errors.get(name) %} aria-invalid="true"{% endif -%}
+{%- endmacro %}
+
+{% macro messages(name, hint, errors) %}
+{% if hint %}<p class="hint" id="f-{{ name }}-hint">{{ hint }}</p>{% endif %}
+{% if errors.get(name) %}<p class="field-error" id="f-{{ name }}-error">{{ errors[name] }}</p>{% endif %}
+{% endmacro %}
+
+{% macro field(name, label, values, errors, type="text", required=True, hint="", autocomplete="off", inputmode="") %}
+<div class="field">
+  {{ label_for(name, label, required) }}
+  {{ messages(name, hint, errors) }}
+  <input id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ values.get(name, '') }}"
+         autocomplete="{{ autocomplete }}"{% if inputmode %} inputmode="{{ inputmode }}"{% endif %}{% if required %} required{% endif %}{{ describe(name, hint, errors) }}>
+</div>
+{% endmacro %}
+
+{% macro textarea(name, label, values, errors, required=True, hint="", rows=4, autofocus=False) %}
+<div class="field">
+  {{ label_for(name, label, required) }}
+  {{ messages(name, hint, errors) }}
+  <textarea id="f-{{ name }}" name="{{ name }}" rows="{{ rows }}"{% if required %} required{% endif %}{% if autofocus %} autofocus{% endif %}{{ describe(name, hint, errors) }}>{{ values.get(name, '') }}</textarea>
+</div>
+{% endmacro %}
+
+{% macro select(name, label, values, errors, options, required=True, hint="", placeholder="") %}
+<div class="field">
+  {{ label_for(name, label, required) }}
+  {{ messages(name, hint, errors) }}
+  <select id="f-{{ name }}" name="{{ name }}"{% if required %} required{% endif %}{{ describe(name, hint, errors) }}>
+    {% if placeholder %}<option value="">{{ placeholder }}</option>{% endif %}
+    {% for value, text in options %}
+    <option value="{{ value }}"{% if values.get(name, '') == value | string %} selected{% endif %}>{{ text }}</option>
+    {% endfor %}
+  </select>
+</div>
+{% endmacro %}
+
+{% macro late_tag() %}<span class="tag tag-late">Kavēts</span>{% endmacro %}
+
+{% macro status_tag(status) %}<span class="tag tag-{{ status }}">{{ STATUSES[status] }}</span>{% endmacro %}

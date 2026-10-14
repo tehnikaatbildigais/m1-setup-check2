@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Piekļuves žurnāls{% endblock %}
+{% block content %}
+<h1>Administrēšana</h1>
+{% include "_admin_nav.html" %}
+<h2>Piekļuves žurnāls</h2>
+<form method="get" action="/admin/zurnals" class="filters">
+  <div class="field inline">
+    <label for="f-darbinieks">Darbinieks</label>
+    <select id="f-darbinieks" name="darbinieks">
+      <option value="">Visi</option>
+      {% for e in employees %}<option value="{{ e.id }}"{% if darbinieks == e.id | string %} selected{% endif %}>{{ e.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field inline">
+    <label for="f-organizacija">Organizācija</label>
+    <select id="f-organizacija" name="organizacija">
+      <option value="">Visas</option>
+      {% for o in orgs %}<option value="{{ o.id }}"{% if organizacija == o.id | string %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="secondary">Atlasīt</button>
+</form>
+{% if entries %}
+<div class="table-wrap" role="region" aria-labelledby="log-caption" tabindex="0">
+<table>
+  <caption id="log-caption">Pēdējie {{ entries | length }} ieraksti, jaunākie augšā</caption>
+  <thead><tr><th scope="col">Laiks</th><th scope="col">Darbinieks</th><th scope="col">Darbība</th><th scope="col">Ieraksts</th><th scope="col">Organizācija</th></tr></thead>
+  <tbody>
+  {% for l in entries %}
+    <tr><td><time datetime="{{ l.at }}">{{ l.at[:10] | lvdate }} {{ l.at[11:16] }}</time></td><td>{{ l.employee_name }}</td><td>{{ l.action }}</td><td>{{ l.entity }} #{{ l.entity_id }}</td><td>{{ l.org_name or "" }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="empty">Atlasei atbilstošu ierakstu nav.</p>{% endif %}
+{% endblock %}

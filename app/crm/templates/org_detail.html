@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "_macros.html" import late_tag, status_tag %}
+{% block title %}{{ org.name }}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/organizacijas">Organizācijas</a></p>
+<div class="page-head">
+  <h1>{{ org.name }}</h1>
+  {% if can_edit %}<a class="button secondary" href="/organizacijas/{{ org.id }}/labot">Labot organizāciju</a>{% endif %}
+</div>
+{% if request.query_params.get('dzests') %}<p class="notice" role="status">Kontaktpersona dzēsta. Mijiedarbībās tā parādīta kā „Dzēsta kontaktpersona”.</p>{% endif %}
+<dl class="facts">
+  <div><dt>Reģ. nr.</dt><dd>{{ org.reg_nr }}</dd></div>
+  <div><dt>Veids</dt><dd>{{ ORG_TYPES[org.type] }}</dd></div>
+  <div><dt>Atbildīgais</dt><dd>{{ org.responsible }}</dd></div>
+</dl>
+{% if not can_edit %}<p class="readonly">Tu vari skatīt šo organizāciju, bet mainīt to var atbildīgais darbinieks vai vadītājs.</p>{% endif %}
+
+<section aria-labelledby="kontakti">
+  <div class="section-head">
+    <h2 id="kontakti">Kontaktpersonas</h2>
+    {% if can_edit %}<a class="button secondary" href="/organizacijas/{{ org.id }}/kontakti/jauns">Pievienot kontaktpersonu</a>{% endif %}
+  </div>
+  {% if contacts %}
+  <div class="table-wrap" role="region" aria-labelledby="contacts-caption" tabindex="0">
+  <table>
+    <caption id="contacts-caption" class="visually-hidden">Organizācijas {{ org.name }} kontaktpersonas</caption>
+    <thead><tr><th scope="col">Vārds</th><th scope="col">Amats</th><th scope="col">E-pasts</th><th scope="col">Tālrunis</th><th scope="col">Saziņas pamats</th>{% if can_edit or is_admin %}<th scope="col">Darbības</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for c in contacts %}
+      <tr>
+        <th scope="row">{{ c.name }}</th>
+        <td>{{ c.position }}</td>
+        <td><a href="mailto:{{ c.email }}">{{ c.email }}</a></td>
+        <td>{{ c.phone }}</td>
+        <td>{{ c.basis }}, {{ c.basis_date | lvdate }}</td>
+        {% if can_edit or is_admin %}<td class="row-actions">
+          {% if can_edit %}<a href="/kontakti/{{ c.id }}/labot">Labot<span class="visually-hidden"> {{ c.name }}</span></a>{% endif %}
+          {% if is_admin %}<a href="/kontakti/{{ c.id }}/dzest">Dzēst<span class="visually-hidden"> {{ c.name }}</span></a>{% endif %}
+        </td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="empty">Kontaktpersonu vēl nav.</p>{% endif %}
+</section>
+
+<section aria-labelledby="mijiedarbibas">
+  <div class="section-head">
+    <h2 id="mijiedarbibas">Mijiedarbības</h2>
+    {% if can_edit %}<a class="button secondary" href="/organizacijas/{{ org.id }}/mijiedarbibas/jauna">Pievienot mijiedarbību</a>{% endif %}
+  </div>
+  {% if interactions %}
+  <ol class="timeline">
+    {% for i in interactions %}
+    <li>
+      <p class="meta"><strong>{{ KINDS[i.kind] }}</strong>, <time datetime="{{ i.date }}">{{ i.date | lvdate }}</time>, {{ i.author }}</p>
+      {% if participants.get(i.id) %}<p class="participants">Dalībnieki: {{ participants[i.id] | join(", ") }}</p>{% endif %}
+      <p>{{ i.summary }}</p>
+      {% if i.next_step %}<p><strong>Nākamais solis:</strong> {{ i.next_step }}</p>{% endif %}
+      {% if i.ai_generated %}<p class="ai-mark">Ģenerēts ar MI, apstiprināja {{ i.approver }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}<p class="empty">Mijiedarbību vēl nav.</p>{% endif %}
+</section>
+
+<section aria-labelledby="pieprasijumi">
+  <div class="section-head">
+    <h2 id="pieprasijumi">Pieprasījumi</h2>
+    {% if can_edit %}<a class="button secondary" href="/organizacijas/{{ org.id }}/pieprasijumi/jauns">Reģistrēt pieprasījumu</a>{% endif %}
+  </div>
+  {% if requests %}
+  <ul class="plain">
+    {% for r in requests %}
+    <li><a href="/pieprasijumi/{{ r.id }}">{{ r.title }}</a> {{ status_tag(r.status) }} termiņš {{ r.deadline | lvdate }}{% if r.status != 'atbildets' and r.deadline < today.isoformat() %} {{ late_tag() }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="empty">Pieprasījumu nav.</p>{% endif %}
+</section>
+
+<section aria-labelledby="uzdevumi">
+  <div class="section-head">
+    <h2 id="uzdevumi">Atvērtie uzdevumi</h2>
+    <a class="button secondary" href="/uzdevumi/jauns?organizacija={{ org.id }}">Pievienot uzdevumu</a>
+  </div>
+  {% if tasks %}
+  <ul class="plain">
+    {% for t in tasks %}<li>{{ t.title }}, {{ t.assignee }}, termiņš {{ t.due | lvdate }}</li>{% endfor %}
+  </ul>
+  {% else %}<p class="empty">Atvērtu uzdevumu nav.</p>{% endif %}
+</section>
+{% endblock %}

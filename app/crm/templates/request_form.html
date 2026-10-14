@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_summary, field, textarea %}
+{% block title %}Jauns pieprasījums{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/organizacijas/{{ org.id }}">{{ org.name }}</a></p>
+<h1>Jauns pieprasījums</h1>
+<p class="lead">Statuss būs „Jauns”, termiņš {{ deadline | lvdate }} (30 dienas, nemaināms).</p>
+{{ error_summary(errors) }}
+<form method="post" novalidate class="narrow">
+  {{ field("title", "Temats", values, errors) }}
+  {{ textarea("description", "Apraksts", values, errors, required=False) }}
+  <div class="actions">
+    <button type="submit">Reģistrēt pieprasījumu</button>
+    <a href="/organizacijas/{{ org.id }}#pieprasijumi">Atcelt</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Kļūda {{ status }}{% endblock %}
+{% block content %}
+<h1>{% if status == 403 %}Nav piekļuves{% elif status == 404 %}Lapa nav atrasta{% elif status == 400 %}Nederīgs pieprasījums{% else %}Kļūda{% endif %}</h1>
+<p class="lead">{{ message }}.</p>
+<p><a href="{{ '/uzdevumi' if employee else '/sakums' }}">Uz sākumu</a></p>
+{% endblock %}

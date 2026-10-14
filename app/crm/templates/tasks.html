@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Mani uzdevumi šodien{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Mani uzdevumi šodien</h1>
+  <a class="button" href="/uzdevumi/jauns">Pievienot uzdevumu</a>
+</div>
+{% if request.query_params.get('izpildits') %}<p class="notice" role="status">Uzdevums atzīmēts kā izpildīts.</p>{% endif %}
+{% if request.query_params.get('pievienots') %}<p class="notice" role="status">Uzdevums pievienots.</p>{% endif %}
+{% if tasks %}
+<ul class="task-list">
+  {% for t in tasks %}
+  <li>
+    <div>
+      <p class="task-title">{{ t.title }}</p>
+      <p class="meta">{% if t.due < day %}<span class="tag tag-late">Kavēts</span> termiņš bija {{ t.due | lvdate }}{% else %}Termiņš šodien{% endif %}.
+        {% if t.org_name %}<a href="/organizacijas/{{ t.organization_id }}">{{ t.org_name }}</a>{% endif %}
+        {% if t.request_title %}<a href="/pieprasijumi/{{ t.request_id }}">{{ t.request_title }}</a>{% endif %}</p>
+    </div>
+    <form method="post" action="/uzdevumi/{{ t.id }}/izpildits">
+      <button type="submit" class="secondary">Atzīmēt kā izpildītu<span class="visually-hidden">: {{ t.title }}</span></button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">Šodienai uzdevumu nav. <a href="/uzdevumi/jauns">Pievienot uzdevumu</a></p>
+{% endif %}
+{% if upcoming %}<p class="hint">Vēl {{ upcoming }} uzdevumi ar vēlāku termiņu.</p>{% endif %}
+{% endblock %}
