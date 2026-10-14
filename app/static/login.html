@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pieteikties | Ezermalas CRM</title>
+  <link rel="preload" href="/static/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="page">
+  <p class="brand">Ezermalas CRM</p>
+  <h1>Pieteikties</h1>
+  <p class="lead">Klientu, sarunu un pieprasījumu uzskaite vienuviet.</p>
+  <p class="notice" role="status" data-notice-param="registered" hidden>Konts izveidots. Piesakies ar e-pastu vai lietotājvārdu.</p>
+  <p class="notice" role="status" data-notice-param="reset" hidden>Parole nomainīta. Piesakies ar jauno paroli.</p>
+  <p class="notice" role="status" data-notice-param="logout" hidden>Tu izgāji no sistēmas.</p>
+  <form data-endpoint="/auth/login" data-redirect="/welcome" novalidate>
+    <p class="form-error" role="alert"></p>
+    <div class="field">
+      <label for="login">E-pasts vai lietotājvārds</label>
+      <input id="login" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" required aria-describedby="login-error">
+      <p class="field-error" id="login-error" data-error-for="login"></p>
+    </div>
+    <div class="field">
+      <label for="password">Parole</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="password-error">
+      <p class="field-error" id="password-error" data-error-for="password"></p>
+    </div>
+    <button type="submit">Pieteikties</button>
+  </form>
+  <div class="links">
+    <p><a href="/password-reset">Aizmirsi paroli?</a></p>
+    <p>Nav konta? <a href="/register">Izveidot kontu</a></p>
+  </div>
+</main>
+<script src="/static/auth.js"></script>
+</body>
+</html>

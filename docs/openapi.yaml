@@ -22,6 +22,8 @@ tags:
     description: Iesnieguma pieņemšana un apskate (R1–R3)
   - name: Sistēma
     description: Tehniskie galapunkti (R4)
+  - name: Lietotāji
+    description: Reģistrācija, pieteikšanās un paroles atjaunošana (CR-4)
 
 paths:
   /health:
@@ -101,6 +103,186 @@ paths:
                 $ref: '#/components/schemas/Submission'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /auth/register:
+    post:
+      tags: [Lietotāji]
+      operationId: registerUser
+      summary: Reģistrēt lietotāju (CR-4)
+      description: |
+        Izveido lietotāja kontu.
+        - `email` un `username` ir unikāli un reģistrjutīgi
+          (`Janis` un `janis` ir dažādi lietotājvārdi).
+        - `username` nedrīkst būt tukšs, saturēt tikai atstarpes vai saturēt `@`.
+        - `password`: vismaz 8 simboli; `passwordConfirm` jāsakrīt ar `password`.
+        - Parole tiek glabāta tikai kā sāļota jaucējvērtība (scrypt).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: janis@example.com
+              username: janis
+              password: ezera-iela-12
+              passwordConfirm: ezera-iela-12
+      responses:
+        '201':
+          description: Konts izveidots
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreated'
+        '400':
+          $ref: '#/components/responses/AuthValidationError'
+        '404':
+          $ref: '#/components/responses/RouteNotFound'
+        '409':
+          $ref: '#/components/responses/UserConflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/login:
+    post:
+      tags: [Lietotāji]
+      operationId: loginUser
+      summary: Pieteikties (CR-4)
+      description: |
+        `login` ir e-pasts vai lietotājvārds. Ja tas satur `@`, to meklē kā
+        e-pastu, citādi kā lietotājvārdu. Salīdzināšana ir reģistrjutīga.
+
+        Veiksmīgas pieteikšanās gadījumā tiek atvērta sesija ar `HttpOnly`
+        sīkdatni `session`.
+
+        **Bloķēšana.** Pēc 3 nepareizām parolēm pēc kārtas konts tiek bloķēts
+        uz 5 minūtēm. Bloķēšanas laikā arī pareiza parole atgriež `401`, un
+        mēģinājumi netiek skaitīti. Veiksmīga pieteikšanās nonullē kļūdu skaitu.
+
+        Nepareiza parole, neesošs lietotājs un bloķēts konts atgriež vienu un
+        to pašu `401` atbildi, lai nevarētu noteikt, vai konts eksistē.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              login: janis@example.com
+              password: ezera-iela-12
+      responses:
+        '200':
+          description: Pieteikšanās izdevās, sesija atvērta
+          headers:
+            Set-Cookie:
+              description: '`session=<marķieris>; HttpOnly; Path=/; SameSite=lax`'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '400':
+          $ref: '#/components/responses/AuthValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+        '404':
+          $ref: '#/components/responses/RouteNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/logout:
+    post:
+      tags: [Lietotāji]
+      operationId: logoutUser
+      summary: Iziet (CR-4)
+      description: |
+        Beidz sesiju un dzēš sīkdatni `session`. Atbilde ir `204` arī tad,
+        ja sesijas nav (darbība ir idempotenta).
+      parameters:
+        - name: session
+          in: cookie
+          required: false
+          description: Sesijas marķieris
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Sesija beigta
+        '400':
+          $ref: '#/components/responses/AuthValidationError'
+        '404':
+          $ref: '#/components/responses/RouteNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/password-reset:
+    post:
+      tags: [Lietotāji]
+      operationId: requestPasswordReset
+      summary: Pieprasīt paroles atjaunošanas saiti (CR-4)
+      description: |
+        Ja e-pasts ir reģistrēts, izveido vienreizēju saiti, kas derīga
+        30 minūtes. Atbilde ir vienāda neatkarīgi no tā, vai e-pasts ir
+        reģistrēts.
+
+        *Prototipā saite tiek ierakstīta servera žurnālā, e-pasts netiek
+        sūtīts. Pirms publiskas izvietošanas jāaizstāj ar e-pasta sūtīšanu.*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+            example:
+              email: janis@example.com
+      responses:
+        '202':
+          description: Pieprasījums pieņemts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                message: If the e-mail is registered, a reset link has been issued
+        '400':
+          $ref: '#/components/responses/AuthValidationError'
+        '404':
+          $ref: '#/components/responses/RouteNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/password-reset/confirm:
+    post:
+      tags: [Lietotāji]
+      operationId: confirmPasswordReset
+      summary: Iestatīt jaunu paroli ar atjaunošanas marķieri (CR-4)
+      description: |
+        Nomaina paroli. Pēc tam vecā parole vairs nedarbojas, marķieri nevar
+        izmantot otrreiz, konta bloķēšana tiek noņemta un visas lietotāja
+        sesijas tiek beigtas. Beidzies, izmantots vai neesošs marķieris
+        atgriež `400` ar `field: token`, `issue: INVALID_OR_EXPIRED`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+      responses:
+        '200':
+          description: Parole nomainīta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                message: Password has been changed
+        '400':
+          $ref: '#/components/responses/AuthValidationError'
+        '404':
+          $ref: '#/components/responses/RouteNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
 components:
   schemas:
@@ -216,6 +398,89 @@ components:
       enum: [RECEIVED, IN_PROGRESS, FORWARDED, ANSWERED, WITHDRAWN]
       example: RECEIVED
 
+    RegisterRequest:
+      type: object
+      required: [email, username, password, passwordConfirm]
+      properties:
+        email:
+          type: string
+          format: email
+          example: janis@example.com
+        username:
+          type: string
+          description: Jebkuri simboli, izņemot `@`; nav tukšs
+          example: janis
+        password:
+          type: string
+          format: password
+          minLength: 8
+        passwordConfirm:
+          type: string
+          format: password
+
+    UserCreated:
+      type: object
+      required: [email, username]
+      properties:
+        email:
+          type: string
+          format: email
+          example: janis@example.com
+        username:
+          type: string
+          example: janis
+
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          description: E-pasts vai lietotājvārds
+          example: janis
+        password:
+          type: string
+          format: password
+
+    LoginResult:
+      type: object
+      required: [username]
+      properties:
+        username:
+          type: string
+          example: janis
+
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: janis@example.com
+
+    PasswordResetConfirm:
+      type: object
+      required: [token, password, passwordConfirm]
+      properties:
+        token:
+          type: string
+          description: Marķieris no atjaunošanas saites
+        password:
+          type: string
+          format: password
+          minLength: 8
+        passwordConfirm:
+          type: string
+          format: password
+
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
     Error:
       type: object
       description: Vienota kļūdu shēma visiem galapunktiem
@@ -235,7 +500,7 @@ components:
               example: Request validation failed
             details:
               type: array
-              description: Katra lauka kļūda atsevišķi (tikai `VALIDATION_ERROR`)
+              description: Katra lauka kļūda atsevišķi (tikai `VALIDATION_ERROR` un `CONFLICT`)
               items:
                 type: object
                 required: [field, issue]
@@ -271,3 +536,61 @@ components:
             error:
               code: NOT_FOUND
               message: Submission not found
+    AuthValidationError:
+      description: |
+        Kļūdains pieprasījums. Iespējamās `issue` vērtības: `REQUIRED`,
+        `INVALID_FORMAT`, `TOO_SHORT`, `MISMATCH`, `INVALID_OR_EXPIRED`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+                - field: password
+                  issue: TOO_SHORT
+    UserConflict:
+      description: E-pasts un/vai lietotājvārds jau ir reģistrēts
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: CONFLICT
+              message: User already exists
+              details:
+                - field: email
+                  issue: ALREADY_EXISTS
+    InvalidCredentials:
+      description: Nepareizi pieteikšanās dati vai konts īslaicīgi bloķēts (vienāda atbilde)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INVALID_CREDENTIALS
+              message: Invalid login or password
+    RouteNotFound:
+      description: Pieprasītais ceļš nav atrasts
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Not Found
+    ServerError:
+      description: Servera iekšēja kļūda. Atbildē nav ievades datu.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Internal server error

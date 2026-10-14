@@ -1,0 +1,1 @@
+"""Ezermalas pieteikumu sistēmas prototips."""

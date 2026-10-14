@@ -1,0 +1,4 @@
+# CR-4: lokālā lietotāju datubāze (satur personas datus, netiek komitēta)
+data/
+__pycache__/
+.pytest_cache/
