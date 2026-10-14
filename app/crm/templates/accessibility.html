@@ -11,7 +11,7 @@
 
 <section aria-labelledby="tested">
   <h2 id="tested">Kā pārbaudīts</h2>
-  <p>Pārbaudes datums: 14.10.2026. Rīki: axe-core 4.10.3 un Playwright ar Chromium (tests/a11y_check.py). Pārbaudīti 19 lapu skati galvenajā ceļā (kopsavilkums darbiniekam, vadītājam un administratoram), katrs gaišajā un tumšajā režīmā.</p>
+  <p>Pārbaudes datums: 14.10.2026. (pēc CR-6 jaunā izskata). Rīki: axe-core 4.10.3 un Playwright ar Chromium (tests/a11y_check.py). Pārbaudīti 20 lapu skati galvenajā ceļā, ieskaitot uzdevumu sadales tāfeli, katrs gaišajā un tumšajā režīmā.</p>
   <div class="table-wrap" role="region" aria-labelledby="results-caption" tabindex="0">
   <table>
     <caption id="results-caption">Testu rezultāti</caption>
@@ -20,7 +20,9 @@
       <tr><th scope="row">axe-core, WCAG 2.0–2.2 A un AA noteikumi</th><td>0 pārkāpumu (nav arī minor vai moderate)</td></tr>
       <tr><th scope="row">axe-core formā ar kļūdām</th><td>0 pārkāpumu; fokuss pāriet uz kļūdu kopsavilkumu</td></tr>
       <tr><th scope="row">Krāsu kontrasts, ko axe nevarēja novērtēt (teksta lauki MI formā, diagrammas teksti)</th><td>Izrēķināts manuāli: mazākais kontrasts 5,46:1 (pelēks teksts uz fona), prasība 4,5:1</td></tr>
-      <tr><th scope="row">320 px platums un 200 % mērogs (640 px)</th><td>Nav horizontālās ritināšanas nevienā no 19 lapu skatiem; platas tabulas ritina savā laukā</td></tr>
+      <tr><th scope="row">320 px platums un 200 % mērogs (640 px)</th><td>Nav horizontālās ritināšanas nevienā no 20 lapu skatiem; platas tabulas ritina savā laukā</td></tr>
+      <tr><th scope="row">Uzdevumu sadales tāfele</th><td>Uzdevumu var nodot ar vilkšanu vai ar formu „Nodot citam darbiniekam” uz katras kartītes (WCAG 2.5.7); forma darbojas ar tastatūru un bez JavaScript; fokuss paliek uz kartītes; rezultāts tiek paziņots ekrānlasītājam</td></tr>
+      <tr><th scope="row">Bez JavaScript</th><td>Navigācija, „Pievienot” izvēlne, formas ar kļūdām un uzdevuma nodošana strādā</td></tr>
       <tr><th scope="row">Tastatūra</th><td>Pirmais Tab fokuss ir „Pāriet uz saturu”; darbinieka izvēle un organizācijas atvēršana izdodas tikai ar tastatūru</td></tr>
     </tbody>
   </table>
@@ -32,6 +34,8 @@
   <ul>
     <li>320 px platumā tabulas ar ekrānā neredzamiem tekstiem (piem., „Dzēst” ar kontaktpersonas vārdu) paplašināja visu lapu, un parādījās horizontālā ritināšana. Novērsts 14.10.2026.</li>
     <li>Pēc MI kopsavilkuma ģenerēšanas fokuss palika lapas sākumā. Tagad fokuss pāriet uz ģenerēto kopsavilkumu.</li>
+    <li>CR-6: uzdevumu sadales tāfelē ekrānā neredzamās etiķetes paplašināja lapu. Novērsts 14.10.2026.</li>
+    <li>CR-6: ja uzdevuma nodošana neizdevās, kartīte atgriezās, bet izvēlnē palika jaunais darbinieks. Novērsts 14.10.2026.</li>
   </ul>
 </section>
 
@@ -42,6 +46,7 @@
     <li>200 % mērogs pārbaudīts, simulējot 640 px platu logu, nevis ar pārlūka tālummaiņu.</li>
     <li>Mijiedarbības formā, nospiežot Enter datuma vai izvēles laukā, tiek nospiesta pirmā poga „Ģenerēt kopsavilkumu”, nevis „Saglabāt”.</li>
     <li>Datuma lauku formāts atkarīgs no pārlūka valodas iestatījumiem.</li>
+    <li>Vilkšana tāfelē nav pārbaudīta ar skārienekrānu, un automātiskajā testā vilkšana uz kolonnu ārpus redzamās daļas neizdevās. Abos gadījumos var izmantot „Nodot citam darbiniekam”.</li>
   </ul>
 </section>
 

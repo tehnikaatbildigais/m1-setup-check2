@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, pages
-from .crm import orgs, overview, schema, work
+from .crm import board, orgs, overview, schema, work
 from .db import Database
 from .errors import register_error_handlers
 
@@ -42,7 +42,8 @@ def create_app(
     register_error_handlers(app)
     app.include_router(auth.router)
     app.include_router(pages.router)
-    for router in (overview.router, orgs.router, work.router):
+    # board pirms work, lai /uzdevumi/sadale nesajaucas ar citiem /uzdevumi/... maršrutiem.
+    for router in (overview.router, orgs.router, board.router, work.router):
         app.include_router(router)
     app.mount("/static", StaticFiles(directory=pages.STATIC_DIR), name="static")
     return app

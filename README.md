@@ -68,6 +68,9 @@ pieprasījumi un uzdevumi. Prasības: `docs/prasibas_arhitektura.md`, pieteikums
 - Pieejamības tests `tests/a11y_check.py` (axe-core + Playwright) tiek izlaists, ja
   Playwright vai Chromium nav uzstādīts.
 - MI-2 klasifikācija un lēmums: `docs/mi2_klasifikacija.md`.
+- CR-6: jauns izskats (sānjosla, augšējā josla ar meklēšanu un „Pievienot”) un
+  „Uzdevumu sadale” vadītājam: kartīšu pārvilkšana starp darbiniekiem vai poga
+  „Nodot citam darbiniekam”. JavaScript uzlabo, bet bez tā viss strādā.
 
 ## Komandas
 

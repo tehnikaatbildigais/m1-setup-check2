@@ -511,7 +511,10 @@ def test_layout_landmarks_and_skip_link(client) -> None:
     assert '<a class="skip-link" href="#saturs">' in page
     for tag in ("<header", "<nav", '<main id="saturs"', "<footer"):
         assert tag in page
-    assert "<script" not in page
+    # CR-6: JS ir uzlabojums; lapa sākas kā „no-js”, skripti nebloķē renderēšanu.
+    assert page.startswith("<!doctype html>")
+    assert '<html lang="lv" class="no-js">' in page
+    assert '<script src="/static/crm.js" defer></script>' in page
 
 
 # 38
@@ -586,7 +589,7 @@ def test_contract_describes_exactly_the_crm_routes(tmp_path) -> None:
     import yaml
     from fastapi.routing import APIRoute
 
-    from app.crm import orgs, overview, work
+    from app.crm import board, orgs, overview, work
     from tools.lint_contract import course_rule_errors
 
     def normalize(path: str) -> str:
@@ -601,7 +604,7 @@ def test_contract_describes_exactly_the_crm_routes(tmp_path) -> None:
         if isinstance(op, dict) and "CRM" in op.get("tags", [])
     }
     routes = {("GET", "/")}
-    for router in (overview.router, orgs.router, work.router):
+    for router in (overview.router, orgs.router, board.router, work.router):
         for route in router.routes:
             if isinstance(route, APIRoute):
                 routes |= {(m, normalize(route.path)) for m in route.methods}

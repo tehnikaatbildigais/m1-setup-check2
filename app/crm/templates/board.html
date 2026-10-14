@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_macros.html" import late_tag %}
+{% block title %}Uzdevumu sadale{% endblock %}
+{% block scripts %}<script src="/static/board.js" defer></script>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Uzdevumu sadale</h1>
+</div>
+<p class="lead">Pārvelc kartīti uz cita darbinieka kolonnu vai izmanto „Nodot citam darbiniekam” uz kartītes. Kartītē ir tikai atvērtie uzdevumi; kavētie ir augšā.</p>
+{% if moved %}<p class="notice" role="status">Uzdevums nodots: {{ moved.name }} („{{ moved.title }}”).</p>{% endif %}
+{% if saved %}<p class="notice" role="status">Kolonnu izvēle saglabāta.</p>{% endif %}
+
+<div class="board-toolbar">
+  <details class="column-picker" data-menu>
+    <summary class="button secondary">Rādīt darbiniekus{% if custom %} ({{ columns | length }} izvēlēti){% endif %}</summary>
+    <form method="post" action="/uzdevumi/sadale" class="column-picker-panel">
+      <fieldset>
+        <legend>Kuru darbinieku kolonnas rādīt</legend>
+        <p class="hint">Ja neko neizvēlas, rāda darbiniekus, kuriem ir atvērti uzdevumi.</p>
+        <div class="choices">
+        {% for e in employees %}
+          <div class="check">
+            <input type="checkbox" id="col-{{ e.id }}" name="employee_ids" value="{{ e.id }}"{% if e.id in shown_ids %} checked{% endif %}>
+            <label for="col-{{ e.id }}">{{ e.name }}</label>
+          </div>
+        {% endfor %}
+        </div>
+      </fieldset>
+      <div class="actions">
+        <button type="submit" name="action" value="save">Saglabāt izvēli</button>
+        <button type="submit" name="action" value="reset" class="secondary">Atjaunot noklusējumu</button>
+      </div>
+    </form>
+  </details>
+  <p class="board-summary" id="board-summary"><strong data-total-open>{{ total_open }}</strong> atvērti, <strong data-total-late>{{ total_late }}</strong> kavēti redzamajās kolonnās</p>
+</div>
+
+{% if columns %}
+<div class="board" data-board role="region" aria-label="Darbinieku kolonnas" tabindex="0">
+  {% for col in columns %}
+  {% set person = col.employee %}
+  {% set open_count = col.cards | length %}
+  <section class="board-column" data-employee="{{ person.id }}" data-name="{{ person.name }}" aria-labelledby="col-title-{{ person.id }}">
+    <div class="column-head">
+      <h2 id="col-title-{{ person.id }}">{{ person.name }}</h2>
+      <p class="column-count" data-count>Atvērti: <span data-open>{{ open_count }}</span>, <span class="{{ 'late' if col.late }}" data-late-wrap>kavēti: <span data-late>{{ col.late }}</span></span></p>
+      <div class="load-bar" aria-hidden="true" data-load>
+        <span class="load-late" style="width: {{ (col.late / busiest * 100) | round(1) }}%"></span>
+        <span class="load-open" style="width: {{ ((open_count - col.late) / busiest * 100) | round(1) }}%"></span>
+      </div>
+    </div>
+    <p class="column-empty" data-empty{% if open_count %} hidden{% endif %}>Atvērtu uzdevumu nav.</p>
+    <ul class="column-cards">
+      {% for t in col.cards %}
+      {% set late = t.due < day %}
+      <li class="task-card{% if late %} is-late{% endif %}" id="uzdevums-{{ t.id }}" data-task="{{ t.id }}" data-due="{{ t.due }}" data-late="{{ 1 if late else 0 }}" draggable="true">
+        <h3>{{ t.title }}</h3>
+        <p class="meta">
+          {% if t.org_name %}<a href="/organizacijas/{{ t.organization_id }}">{{ t.org_name }}</a>{% endif %}
+          {% if t.request_title %}<a href="/pieprasijumi/{{ t.request_id }}">{{ t.request_title }}</a>{% endif %}
+        </p>
+        <p class="due">{% if late %}{{ late_tag() }}{% endif %}<span>Termiņš {{ t.due | lvdate }}</span></p>
+        <form method="post" action="/uzdevumi/{{ t.id }}/izpilditajs" class="reassign">
+          <label for="reassign-{{ t.id }}" class="visually-hidden">Nodot citam darbiniekam: {{ t.title }}</label>
+          <select id="reassign-{{ t.id }}" name="assignee_id">
+            {% for e in employees %}<option value="{{ e.id }}"{% if e.id == t.assignee_id %} selected{% endif %}>{{ e.name }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="secondary">Nodot<span class="visually-hidden"> citam darbiniekam</span></button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">Nav ko rādīt: nevienam no izvēlētajiem darbiniekiem nav atvērtu uzdevumu. Izvēlies citus darbiniekus vai atjauno noklusējumu.</p>
+{% endif %}
+{% endblock %}
