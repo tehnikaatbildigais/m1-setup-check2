@@ -129,7 +129,7 @@ prasībām. Pilnas prasības un konceptuālā arhitektūra:
 
 | # | Ievade | Sagaidāmais rezultāts |
 |---|---|---|
-| 42 | Sākumdati | 25 darbinieki (vismaz 1 vadītājs, 1 administrators), 10 organizācijas, 20 kontakti, 30 mijiedarbības, izdomāti |
+| 42 | Sākumdati | 25 darbinieki (vismaz 1 vadītājs, 1 administrators), 10 organizācijas, 20 kontakti, 95 mijiedarbības, 43 pieprasījumi, 35 uzdevumi | 
 | 43 | `docs/openapi.yaml` | Apraksta CRM maršrutus (text/html); `make lint-contract` jaunajām operācijām bez kļūdām (❓) |
 | 44 | `make test` | Iziet; CR-4 testi turpina iziet |
 ### Kopsavilkums (F9)
