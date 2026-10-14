@@ -268,3 +268,129 @@ def seed(conn: sqlite3.Connection, today: date) -> None:
             " VALUES (?, ?, ?, ?, ?)",
             (title, assignee, day(due), org_id, request_id),
         )
+    _seed_extra(conn, today)
+
+
+# --- Papildu sintētiskie dati (≥ 3x pieprasījumu, uzdevumu un mijiedarbību) -------------
+
+EXTRA_SUMMARIES = [
+    ("sanaksme", "Apspriests kopīgs projekta pieteikums vides izglītībai. Organizācija sagatavos budžeta projektu.", "Saņemt budžeta projektu un to izvērtēt."),
+    ("zvans", "Precizēti semināra dalībnieku skaits un telpu prasības. Vajadzīga pieeja cilvēkiem ratiņkrēslā.", "Apstiprināt telpu piemērotību."),
+    ("epasts", "Nosūtīts pārskats par iepriekšējā gada sadarbību. Organizācija lūdz to papildināt ar rezultātu rādītājiem.", "Papildināt pārskatu ar rādītājiem."),
+    ("sanaksme", "Iepazīšanās tikšanās ar jauno valdi. Interese par konsultācijām grāmatvedībā un ziedojumu piesaistē.", "Nosūtīt konsultāciju piedāvājumu."),
+    ("zvans", "Organizācija ziņoja par kavējumu atskaites iesniegšanā. Vienojāmies par jaunu termiņu.", "Pārbaudīt atskaiti pēc jaunā termiņa."),
+    ("epasts", "Saņemts jautājums par datu apmaiņas formātu. Nosūtīts paraugs un skaidrojums.", ""),
+    ("sanaksme", "Kopīgi plānots reģionālais forums. Sadalīti pienākumi programmas, telpu un informēšanas jomā.", "Sagatavot foruma darba kārtības projektu."),
+    ("zvans", "Kontaktpersona lūdza atkārtot konsultāciju par publiskā iepirkuma procedūru.", "Pieteikt konsultāciju."),
+    ("epasts", "Organizācija atsūtīja ieteikumus nākamā gada semināru tēmām.", "Iekļaut ieteikumus semināru plānā."),
+    ("sanaksme", "Izvērtēta brīvprātīgo programmas norise. Dalībnieku skaits pieaudzis, bet trūkst koordinatoru.", "Piedāvāt koordinatoru apmācību."),
+    ("zvans", "Pārrunāta iespēja kopīgi organizēt jauniešu nometni vasarā.", "Nosūtīt nometnes ideju aprakstu."),
+    ("epasts", "Nosūtīts uzaicinājums piedalīties aptaujā par sadarbības kvalitāti.", "Atgādināt par aptauju pēc nedēļas."),
+]
+
+EXTRA_REQUESTS = [
+    "Konsultācija par ziedojumu uzskaiti", "Semināra telpu rezervācija", "Atbalsta vēstule fondam",
+    "Statistikas datu pieprasījums", "Jautājums par nomas līgumu", "Lūgums pēc lektora semināram",
+    "Informācija par atbalsta programmām", "Kopīga pasākuma saskaņošana", "Konsultācija par VDAR",
+    "Dalība darba grupā", "Projekta partnerības apstiprinājums", "Prakses vietu pieprasījums",
+    "Semināra ierakstu pieprasījums", "Jautājums par līdzfinansējumu", "Pieredzes stāsts izdevumam",
+    "Konsultācija par grāmatvedību", "Telpu nodrošinājums sapulcei", "Pieprasījums pēc atskaites veidlapas",
+    "Uzaicinājums uz gadatirgu", "Konsultācija par iepirkuma dokumentiem", "Ekspertu atzinums projektam",
+    "Informatīvā materiāla saskaņošana", "Brīvprātīgo apdrošināšana", "Jautājums par pārskata termiņiem",
+    "Tikšanās ar vadību", "Kopīgs preses relīzes projekts", "Apmācību sertifikātu izsniegšana",
+    "Datu labošanas pieprasījums", "Jaunatnes programmas informācija", "Sadarbības memoranda projekts",
+]
+
+EXTRA_TASKS = [
+    "Sagatavot konsultācijas materiālus", "Nosūtīt uzaicinājumu", "Piezvanīt kontaktpersonai",
+    "Pārbaudīt atskaiti", "Sagatavot atbildes projektu", "Saskaņot telpas", "Atjaunot kontaktinformāciju",
+    "Nosūtīt semināra programmu", "Sagatavot līguma projektu", "Apkopot dalībnieku sarakstu",
+    "Sagatavot sanāksmes protokolu", "Izvērtēt projekta pieteikumu", "Nosūtīt pateicības vēstuli",
+    "Pārbaudīt rēķinu", "Sagatavot preses relīzi", "Atbildēt uz e-pastu", "Organizēt tikšanos",
+    "Sagatavot prezentāciju", "Nosūtīt aptaujas atgādinājumu", "Apkopot ieteikumus",
+    "Pārskatīt sadarbības plānu", "Sagatavot sertifikātus", "Saskaņot darba kārtību",
+    "Nosūtīt materiālus", "Pārbaudīt datu apmaiņas paraugu",
+]
+
+# Kontaktpersonas ar beigušos glabāšanas termiņu (N2) netiek iesaistītas jaunās saziņās,
+# un darbinieks 22 paliek bez darba, lai F9 tukšo bloku stāvoklis ir pārbaudāms.
+RETENTION_CONTACT_IDS = {8, 14}
+IDLE_EMPLOYEE_ID = 22
+# Pirmā darbinieka uzdevumi paliek tādi paši kā pamata datos (F5 testi).
+FIXED_TASK_EMPLOYEE_ID = 1
+
+
+def _seed_extra(conn: sqlite3.Connection, today: date) -> None:
+    import random
+
+    rng = random.Random(5)
+
+    def day(offset: int) -> str:
+        return (today + timedelta(days=offset)).isoformat()
+
+    responsible = {i + 1: org[3] for i, org in enumerate(ORGANIZATIONS)}
+    authors = [i for i in range(1, len(EMPLOYEES) + 1) if i != IDLE_EMPLOYEE_ID]
+
+    # 65 mijiedarbības pēdējo ~6 mēnešu laikā (kopā 95).
+    for index in range(65):
+        org_id = rng.randint(1, 10)
+        kind, summary, next_step = EXTRA_SUMMARIES[index % len(EXTRA_SUMMARIES)]
+        author = responsible[org_id] if rng.random() < 0.7 else rng.choice(authors)
+        if author == IDLE_EMPLOYEE_ID:
+            author = responsible[org_id]
+        cursor = conn.execute(
+            "INSERT INTO interactions (organization_id, author_id, kind, date, summary,"
+            " next_step) VALUES (?, ?, ?, ?, ?, ?)",
+            (org_id, author, kind, day(-rng.randint(2, 180)), summary, next_step),
+        )
+        contacts = [c for c in ((org_id - 1) * 2 + 1, (org_id - 1) * 2 + 2)
+                    if c not in RETENTION_CONTACT_IDS]
+        for contact_id in rng.sample(contacts, k=rng.randint(0, len(contacts))):
+            conn.execute(
+                "INSERT INTO interaction_participants (interaction_id, contact_id) VALUES (?, ?)",
+                (cursor.lastrowid, contact_id),
+            )
+
+    # 30 pieprasījumi (kopā 43): vecākie lielākoties atbildēti, daži kavēti, daži jauni.
+    for index, title in enumerate(EXTRA_REQUESTS):
+        org_id = rng.randint(1, 10)
+        created = -rng.randint(1, 120)
+        deadline = created + REQUEST_DAYS
+        if created <= -REQUEST_DAYS:
+            answered = rng.random() < 0.8
+        else:
+            answered = rng.random() < 0.3
+        status = "atbildets" if answered else ("darba" if rng.random() < 0.6 else "jauns")
+        answered_on = None
+        if answered:
+            # Daži atbildēti pēc termiņa (F7 „kavētie periodā”).
+            answered_on = day(min(-1, created + rng.randint(3, REQUEST_DAYS + 10)))
+        conn.execute(
+            "INSERT INTO requests (organization_id, title, description, created_on, deadline,"
+            " status, answered_on) VALUES (?, ?, '', ?, ?, ?, ?)",
+            (org_id, title, day(created), day(deadline), status, answered_on),
+        )
+
+    open_requests = conn.execute(
+        "SELECT id, organization_id FROM requests WHERE status != 'atbildets'"
+    ).fetchall()
+    assignees = [i for i in authors if i != FIXED_TASK_EMPLOYEE_ID]
+
+    # 25 uzdevumi (kopā 35): daļa izpildīti, daļa kavēti, daļa nākotnē.
+    for index, title in enumerate(EXTRA_TASKS):
+        if index % 3 == 0 and open_requests:
+            request_id, org_id = rng.choice(open_requests)
+            target = (None, request_id)
+        else:
+            org_id = rng.randint(1, 10)
+            target = (org_id, None)
+        assignee = responsible[org_id] if rng.random() < 0.6 else rng.choice(assignees)
+        if assignee in (FIXED_TASK_EMPLOYEE_ID, IDLE_EMPLOYEE_ID):
+            assignee = rng.choice(assignees)
+        due = rng.randint(-10, 14)
+        done_on = day(min(0, due + rng.randint(-2, 2))) if due < 0 and rng.random() < 0.5 else None
+        conn.execute(
+            "INSERT INTO tasks (title, assignee_id, due, organization_id, request_id, done_on)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (title, assignee, day(due), *target, done_on),
+        )

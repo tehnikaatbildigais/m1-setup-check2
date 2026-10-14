@@ -62,7 +62,7 @@ pieprasījumi un uzdevumi. Prasības: `docs/prasibas_arhitektura.md`, pieteikums
 
 - Dati glabājas `data/crm.db` (ceļu var mainīt ar `CRM_DB_PATH`). Pirmajā palaišanā tiek
   ievietoti izdomāti sākumdati: 25 darbinieki, 10 organizācijas, 20 kontakti,
-  30 mijiedarbības. Lai sāktu no jauna, izdzēs `data/crm.db`.
+  95 mijiedarbības, 43 pieprasījumi un 35 uzdevumi. Lai sāktu no jauna, izdzēs `data/crm.db`.
 - MI-1 kopsavilkums: bez `ANTHROPIC_API_KEY` darbojas atslēgvārdu imitācija; ar atslēgu
   izmanto Claude (`claude-opus-5-5`).
 - Pieejamības tests `tests/a11y_check.py` (axe-core + Playwright) tiek izlaists, ja

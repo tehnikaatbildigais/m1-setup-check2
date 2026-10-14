@@ -554,7 +554,9 @@ def test_admin_filters_log(client) -> None:
 def test_seed_data_counts(client, crm_db) -> None:
     counts = {t: query(crm_db, f"SELECT COUNT(*) FROM {t}")[0][0]
               for t in ("employees", "organizations", "contacts", "interactions")}
-    assert counts == {"employees": 25, "organizations": 10, "contacts": 20, "interactions": 30}
+    assert counts == {"employees": 25, "organizations": 10, "contacts": 20, "interactions": 95}
+    assert query(crm_db, "SELECT COUNT(*) FROM requests")[0][0] >= 39  # ≥ 3 × 13
+    assert query(crm_db, "SELECT COUNT(*) FROM tasks")[0][0] >= 30  # ≥ 3 × 10
     roles = dict(query(crm_db, "SELECT role, COUNT(*) FROM employees GROUP BY role"))
     assert roles["vaditajs"] >= 1 and roles["administrators"] >= 1
 
@@ -678,11 +680,14 @@ def test_dashboard_interactions_own_orgs_and_authored(client) -> None:
 
 
 # 49
-def test_manager_dashboard_shows_institution(client) -> None:
+def test_manager_dashboard_shows_institution(client, crm_db) -> None:
     act_as(client, INESE)
     page = client.get("/kopsavilkums").text
     assert 'id="institution-title"' in page
-    assert re.search(r"<dt>Kavēti pieprasījumi</dt><dd>3</dd>", page)
+    late = query(crm_db, "SELECT COUNT(*) FROM requests WHERE status != 'atbildets'"
+                         " AND deadline < ?", TODAY.isoformat())[0][0]
+    assert late >= 3
+    assert re.search(rf"<dt>Kavēti pieprasījumi</dt><dd>{late}</dd>", page)
     assert "Visi kavētie pieprasījumi iestādē" in page
     assert "Semināra materiālu pieprasījums" in page  # Annas organizācija
     assert "Pēdējās mijiedarbības iestādē" in page
@@ -705,8 +710,11 @@ def test_dashboard_empty_states(client) -> None:
     assert "Pēdējās 7 dienās mijiedarbību nav." in page
 
 
-def test_dashboard_no_due_requests_in_own_orgs(client) -> None:
-    act_as(client, 6)  # Edgars Zariņš: atbildīgais org. 9, pieprasījuma termiņš +15 d.
+def test_dashboard_no_due_requests_in_own_orgs(client, crm_db) -> None:
+    # Edgars Zariņš ir atbildīgais org. 9; visus tās pieprasījumus atzīmē kā atbildētus.
+    with sqlite3.connect(crm_db) as conn:
+        conn.execute("UPDATE requests SET status = 'atbildets' WHERE organization_id = 9")
+    act_as(client, 6)
     page = client.get("/kopsavilkums").text
     assert "Manās organizācijās nav kavētu pieprasījumu" in page
 
