@@ -1,0 +1,114 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --text: #1c2230;
+  --muted: #5a6375;
+  --border: #d3d8e0;
+  --focus: #2456c4;
+  --accent: #2456c4;
+  --accent-hover: #1b4399;
+  --accent-text: #ffffff;
+  --error: #b42318;
+  --notice-bg: #e9f3ec;
+  --notice-text: #1d5e35;
+  --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171d;
+    --surface: #1d2129;
+    --text: #e7e9ee;
+    --muted: #a0a8b8;
+    --border: #383e4a;
+    --focus: #8fb0ff;
+    --accent: #5b86e5;
+    --accent-hover: #7a9df0;
+    --accent-text: #0e1320;
+    --error: #ff8a80;
+    --notice-bg: #1d3326;
+    --notice-text: #a6dbb7;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+main {
+  width: 100%;
+  max-width: 400px;
+  padding: 32px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+h1 { margin: 0 0 4px; font-size: 1.5rem; font-weight: 600; }
+
+.lead { margin: 0 0 24px; color: var(--muted); }
+
+.field { margin-bottom: 16px; }
+
+label { display: block; margin-bottom: 4px; font-weight: 500; }
+
+input {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+input:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+input[aria-invalid="true"] { border-color: var(--error); }
+
+.hint { margin: 4px 0 0; font-size: 0.875rem; color: var(--muted); }
+
+.field-error, .form-error { margin: 4px 0 0; font-size: 0.875rem; color: var(--error); }
+.field-error:empty, .form-error:empty { display: none; }
+.form-error { margin: 0 0 16px; }
+
+.notice {
+  margin: 0 0 20px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--notice-bg);
+  color: var(--notice-text);
+}
+.notice[hidden] { display: none; }
+
+button {
+  width: 100%;
+  padding: 11px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover { background: var(--accent-hover); }
+button:disabled { opacity: 0.6; cursor: progress; }
+
+a { color: var(--accent); }
+
+.links { margin: 20px 0 0; text-align: center; color: var(--muted); }
+.links p { margin: 6px 0; }

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sveiki · Ezermalas pieteikumu sistēma</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <h1>Sveiks, {{username}}!</h1>
+  <p class="lead">Pieteikšanās Ezermalas pieteikumu sistēmā izdevās.</p>
+  <form data-endpoint="/auth/logout" data-redirect="/login?logout=1" novalidate>
+    <p class="form-error" role="alert"></p>
+    <button type="submit">Iziet</button>
+  </form>
+</main>
+<script src="/static/auth.js"></script>
+</body>
+</html>

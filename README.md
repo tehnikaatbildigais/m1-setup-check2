@@ -38,6 +38,17 @@ make lint-contract
 
 Sākotnējā līguma versija šo pārbaudi neiztur apzināti. Uzdevums ir pabeigts, kad komanda beidzas veiksmīgi.
 
+## CR-4 · Lietotāju konti (prototips)
+
+Palaid `make run` un atver <http://localhost:8000/login>. Ir pieejamas lapas
+`/login`, `/register`, `/password-reset` un `/welcome`, kā arī API operācijas
+`/auth/*` (sk. `docs/openapi.yaml` un Swagger UI `/docs`).
+
+- Lietotāji glabājas SQLite failā `data/users.db`; ceļu var mainīt ar `AUTH_DB_PATH`.
+  Mape `data/` netiek komitēta.
+- Paroles atjaunošanas saite netiek sūtīta pa e-pastu, bet tiek ierakstīta servera
+  žurnālā (terminālī). Tas ir pieļaujams tikai lokālajam prototipam.
+
 ## Komandas
 
 | Komanda | Nozīme |
@@ -45,3 +56,4 @@ Sākotnējā līguma versija šo pārbaudi neiztur apzināti. Uzdevums ir pabeig
 | `make verify-setup` | Pārbauda Python, kursa pakotnes, Claude Code, saglabāto atbildi un smoke testus |
 | `make test` | Palaiž visus `pytest` testus |
 | `make lint-contract` | Validē OpenAPI dokumentu un kursa līguma noteikumus |
+| `make run` | Palaiž prototipu uz porta 8000 (CR-4) |
