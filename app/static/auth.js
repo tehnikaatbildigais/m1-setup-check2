@@ -44,6 +44,7 @@ async function submitForm(event) {
   const form = event.currentTarget;
   const button = form.querySelector("button[type=submit]");
   clearErrors(form);
+  document.querySelectorAll("[data-notice-param]").forEach((el) => (el.hidden = true));
   button.disabled = true;
 
   let response;

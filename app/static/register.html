@@ -3,24 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reģistrācija · Ezermalas pieteikumu sistēma</title>
+  <title>Izveidot kontu | Ezermalas CRM</title>
+  <link rel="preload" href="/static/fonts/schibsted-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<main>
-  <h1>Reģistrēties</h1>
-  <p class="lead">Izveido kontu Ezermalas pieteikumu sistēmā</p>
+<main class="page">
+  <p class="brand">Ezermalas CRM</p>
+  <h1>Izveidot kontu</h1>
+  <p class="lead">Konts dod piekļuvi klientu, sarunu un pieprasījumu uzskaitei.</p>
   <form data-endpoint="/auth/register" data-redirect="/login?registered=1" novalidate>
     <p class="form-error" role="alert"></p>
     <div class="field">
       <label for="email">E-pasts</label>
-      <input id="email" name="email" type="email" autocomplete="email" required aria-describedby="email-error">
+      <input id="email" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required aria-describedby="email-error">
       <p class="field-error" id="email-error" data-error-for="email"></p>
     </div>
     <div class="field">
       <label for="username">Lietotājvārds</label>
-      <input id="username" name="username" autocomplete="username" required aria-describedby="username-hint username-error">
-      <p class="hint" id="username-hint">Nedrīkst saturēt simbolu @. Lielie un mazie burti atšķiras.</p>
+      <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required aria-describedby="username-hint username-error">
+      <p class="hint" id="username-hint">Bez simbola @. Lielie un mazie burti atšķiras.</p>
       <p class="field-error" id="username-error" data-error-for="username"></p>
     </div>
     <div class="field">
@@ -30,11 +32,11 @@
       <p class="field-error" id="password-error" data-error-for="password"></p>
     </div>
     <div class="field">
-      <label for="passwordConfirm">Parole atkārtoti</label>
+      <label for="passwordConfirm">Parole vēlreiz</label>
       <input id="passwordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" required aria-describedby="passwordConfirm-error">
       <p class="field-error" id="passwordConfirm-error" data-error-for="passwordConfirm"></p>
     </div>
-    <button type="submit">Reģistrēties</button>
+    <button type="submit">Izveidot kontu</button>
   </form>
   <div class="links">
     <p>Jau ir konts? <a href="/login">Pieteikties</a></p>
