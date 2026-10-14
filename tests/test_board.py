@@ -30,7 +30,8 @@ def client(tmp_path: Path, crm_db: Path):
 
 
 def act_as(client, employee_id: int) -> None:
-    client.post("/sakums", data={"employee_id": str(employee_id)}, follow_redirects=False)
+    response = client.post("/sakums", data={"employee_id": str(employee_id)}, follow_redirects=False)
+    assert response.status_code == 303
 
 
 def query(db: Path, sql: str, *params):
@@ -128,11 +129,11 @@ def test_reassign_json(client, crm_db) -> None:
     assert "Nosūtīt semināra programmu" in client.get("/uzdevumi").text
 
 
-@pytest.mark.parametrize("assignee,status", [("999", 400), ("", 400), ("abc", 400)])
-def test_reassign_invalid_employee(client, assignee, status) -> None:
+@pytest.mark.parametrize("assignee", ["999", "", "abc"])
+def test_reassign_invalid_employee(client, assignee) -> None:
     act_as(client, INESE)
     response = client.post("/uzdevumi/1/izpilditajs", data={"assignee_id": assignee}, headers=JSON)
-    assert response.status_code == status
+    assert response.status_code == 400
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 

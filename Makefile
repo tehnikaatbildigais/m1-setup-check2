@@ -21,4 +21,4 @@ install:
 
 install-dev:
 	pip install -r requirements-dev.txt
-	playwright install chromium
+	playwright install --with-deps chromium

@@ -16,7 +16,15 @@ from pathlib import Path
 
 import pytest
 
-sync_api = pytest.importorskip("playwright.sync_api")
+import os
+
+# A11Y_REQUIRED=1 (piem., CI ar uzstādītu pārlūku): trūkstošs Playwright/Chromium ir kļūda,
+# nevis klusa izlaišana, lai N1 pārbaude nepazustu nemanot.
+REQUIRED = os.environ.get("A11Y_REQUIRED") == "1"
+if REQUIRED:
+    import playwright.sync_api as sync_api
+else:
+    sync_api = pytest.importorskip("playwright.sync_api")
 uvicorn = pytest.importorskip("uvicorn")
 
 from app.application import create_app  # noqa: E402
@@ -64,10 +72,11 @@ def base_url(tmp_path_factory):
     server = uvicorn.Server(uvicorn.Config(app, port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
-    for _ in range(100):
+    for _ in range(200):
         if server.started:
             break
         time.sleep(0.05)
+    assert server.started, f"Testa serveris neieslēdzās uz porta {port}"
     yield f"http://127.0.0.1:{port}"
     server.should_exit = True
     thread.join(timeout=5)
@@ -78,7 +87,9 @@ def browser():
     with sync_api.sync_playwright() as playwright:
         try:
             instance = playwright.chromium.launch()
-        except Exception as exc:  # pārlūks nav lejupielādēts
+        except Exception as exc:  # pārlūks nav lejupielādēts vai trūkst sistēmas bibliotēku
+            if REQUIRED:
+                pytest.fail(f"Chromium nav pieejams, bet A11Y_REQUIRED=1: {exc}")
             pytest.skip(f"Chromium nav pieejams: {exc}")
         yield instance
         instance.close()
@@ -156,16 +167,28 @@ def test_keyboard_only_main_path(browser, base_url) -> None:
     page.keyboard.press("Enter")
     page.wait_for_url("**/kopsavilkums")
     page.goto(base_url + "/organizacijas")
-    for _ in range(40):
+    for _ in range(60):
         page.keyboard.press("Tab")
         if page.evaluate("document.activeElement.getAttribute('href')") == "/organizacijas/1":
             break
+    else:
+        pytest.fail("Saite /organizacijas/1 nav sasniedzama ar Tab 60 soļos")
     page.keyboard.press("Enter")
     page.wait_for_url("**/organizacijas/1")
     page.close()
 
 
 # --- CR-6: ietvars un uzdevumu sadales tāfele ---------------------------------------------
+
+def _other_shown_column(page, task_id) -> str:
+    """Redzama kolonna, kas nav kartītes pašreizējā (testi nav atkarīgi no secības)."""
+    return page.evaluate(
+        """id => [...document.querySelectorAll('.board-column')].map(c => c.dataset.employee)
+              .find(e => e !== document.getElementById('uzdevums-' + id)
+                                 .closest('.board-column').dataset.employee)""",
+        task_id,
+    )
+
 
 def _card_column(page, task_id: int) -> str:
     return page.evaluate(
@@ -177,13 +200,17 @@ def _card_column(page, task_id: int) -> str:
 def test_board_drag_and_drop_reassigns(browser, base_url) -> None:
     page = _page_as(browser, base_url, 23)
     page.goto(base_url + "/uzdevumi/sadale")
-    target = page.locator('.board-column[data-employee="2"]')
-    page.locator("#uzdevums-4").drag_to(target)  # Jānis → Jānis: tā pati kolonna, nekas nemainās
-    page.locator("#uzdevums-8").drag_to(target)
+    # Blakus esošas kolonnas, lai vilkšana nav atkarīga no horizontālās ritināšanas.
+    columns = page.evaluate("[...document.querySelectorAll('.board-column')].map(c => c.dataset.employee)")
+    source = page.locator(f'.board-column[data-employee="{columns[0]}"] .task-card').first
+    task_id = source.get_attribute("data-task")
+    target = page.locator(f'.board-column[data-employee="{columns[1]}"]')
+    # Nomet pie kolonnas galvenes: garām kolonnām centrs var būt zem redzamās daļas.
+    source.drag_to(target, target_position={"x": 40, "y": 30})
     page.wait_for_function("document.getElementById('live').textContent.includes('Uzdevums nodots')")
-    assert _card_column(page, 8) == "2"
+    assert _card_column(page, task_id) == columns[1]
     page.reload()
-    assert _card_column(page, 8) == "2"  # saglabāts serverī
+    assert _card_column(page, task_id) == columns[1]  # saglabāts serverī
     page.close()
 
 
@@ -195,7 +222,7 @@ def test_board_failed_move_returns_card(browser, base_url) -> None:
     page.goto(base_url + "/uzdevumi/sadale")
     before = _card_column(page, 9)
     # Tas pats atgriešanas ceļš kā vilkšanai (reassign()); forma neatkarīga no kolonnu novietojuma.
-    page.select_option("#reassign-9", "2")
+    page.select_option("#reassign-9", _other_shown_column(page, 9))
     page.locator("#uzdevums-9 form.reassign button").click()
     page.wait_for_function("document.getElementById('live').textContent.includes('Kartīte atgriezta')")
     assert _card_column(page, 9) == before
@@ -206,15 +233,16 @@ def test_board_failed_move_returns_card(browser, base_url) -> None:
 def test_board_keyboard_reassign_keeps_focus(browser, base_url) -> None:
     page = _page_as(browser, base_url, 25)
     page.goto(base_url + "/uzdevumi/sadale")
+    target = _other_shown_column(page, 10)
     page.focus("#reassign-10")
-    page.select_option("#reassign-10", "2")
+    page.select_option("#reassign-10", target)
     page.keyboard.press("Tab")
     page.keyboard.press("Enter")
-    page.wait_for_function("document.getElementById('live').textContent.includes('Uzdevums nodots: Jānis Ozols')")
-    assert _card_column(page, 10) == "2"
+    page.wait_for_function("document.getElementById('live').textContent.includes('Uzdevums nodots')")
+    assert _card_column(page, 10) == target
     assert page.evaluate("document.activeElement.id") == "reassign-10"
-    open_count = page.locator('.board-column[data-employee="2"] [data-open]').inner_text()
-    assert int(open_count) == page.locator('.board-column[data-employee="2"] .task-card').count()
+    open_count = page.locator(f'.board-column[data-employee="{target}"] [data-open]').inner_text()
+    assert int(open_count) == page.locator(f'.board-column[data-employee="{target}"] .task-card').count()
     page.close()
 
 
@@ -254,10 +282,12 @@ def test_without_javascript_everything_still_works(browser, base_url) -> None:
     page.click("form.narrow button[type=submit]")
     assert page.locator(".error-summary").is_visible()
     page.goto(base_url + "/uzdevumi/sadale")
-    page.select_option("#reassign-6", "1")
-    page.locator("#uzdevums-6 form.reassign button").click()
-    page.wait_for_url("**/uzdevumi/sadale?nodots=6*")
-    assert "Uzdevums nodots: Anna Kalniņa" in page.content()
+    task_id = page.locator(".task-card").first.get_attribute("data-task")
+    current = page.input_value(f"#reassign-{task_id}")
+    page.select_option(f"#reassign-{task_id}", "1" if current != "1" else "2")
+    page.locator(f"#uzdevums-{task_id} form.reassign button").click()
+    page.wait_for_url(f"**/uzdevumi/sadale?nodots={task_id}*")
+    assert "Uzdevums nodots:" in page.content()
     context.close()
 
 

@@ -165,7 +165,8 @@ paths:
         mēģinājumi netiek skaitīti. Veiksmīga pieteikšanās nonullē kļūdu skaitu.
 
         Nepareiza parole, neesošs lietotājs un bloķēts konts atgriež vienu un
-        to pašu `401` atbildi, lai nevarētu noteikt, vai konts eksistē.
+        to pašu `401` atbildi, lai nevarētu noteikt, vai konts eksistē. Arī parole,
+        kas garāka par 1024 simboliem, atgriež `401` bez paroles pārbaudes.
       requestBody:
         required: true
         content:
@@ -956,7 +957,7 @@ paths:
       operationId: crmTaskBoardColumns
       summary: "Saglabāt tāfeles kolonnu izvēli (CR-6)"
       description: |
-        Izvēle tiek glabāta datubāzē pie vadītāja. `action=reset` atjauno noklusējumu.
+        Izvēle tiek glabāta datubāzē pie vadītāja. `action=reset` vai tukšs `employee_ids` atjauno noklusējumu (darbinieki ar atvērtiem uzdevumiem).
       parameters:
         - $ref: '#/components/parameters/CrmEmployeeCookie'
       requestBody:
@@ -983,7 +984,7 @@ paths:
       operationId: crmTaskReassign
       summary: "Nodot uzdevumu citam darbiniekam (CR-6)"
       description: |
-        Tikai vadītājs vai administrators; tikai atvērtam uzdevumam. Ar `Accept: application/json` (tāfeles vilkšana) atbilde ir 200 JSON, citādi 303 atpakaļ uz tāfeli. Izmaiņa tiek ierakstīta piekļuves žurnālā.
+        Tikai vadītājs vai administrators; tikai atvērtam uzdevumam. Ja `Accept` satur `application/json` un nesatur `text/html` (tāfeles `fetch`), atbilde ir 200 JSON un kļūdas ir `Error` (izpildītam uzdevumam `code: TASK_DONE`); citādi 303 atpakaļ uz tāfeli un kļūdas ir HTML lapa. Izmaiņa tiek ierakstīta piekļuves žurnālā.
       parameters:
         - name: 'taskId'
           in: path
@@ -1432,6 +1433,7 @@ components:
           type: string
           format: password
           minLength: 8
+          maxLength: 1024
         passwordConfirm:
           type: string
           format: password
@@ -1488,6 +1490,7 @@ components:
           type: string
           format: password
           minLength: 8
+          maxLength: 1024
         passwordConfirm:
           type: string
           format: password
@@ -1640,8 +1643,7 @@ components:
       properties:
         return_to:
           type: string
-          enum: [/uzdevumi, /kopsavilkums]
-          description: Lapa pēc atzīmēšanas; cita vērtība → `/uzdevumi`
+          description: "Lapa pēc atzīmēšanas: `/uzdevumi` vai `/kopsavilkums`; jebkura cita vērtība → `/uzdevumi` (nav kļūda)"
 
     EmployeeChoiceForm:
       type: object
@@ -1806,7 +1808,7 @@ components:
           schema:
             type: string
     HtmlBadRequest:
-      description: "Kļūdaina ievade. Pārlūks (`Accept: text/html`) saņem formu atkārtoti ar kļūdu tekstiem pie laukiem; citi klienti saņem `Error`."
+      description: "Kļūdaina ievade. Pārlūks (`Accept: text/html`) saņem formu atkārtoti ar kļūdu tekstiem pie laukiem vai, ja operācijai nav formas (piem., statusa vai izpildītāja maiņa), kļūdas lapu; citi klienti saņem `Error`."
       content:
         text/html:
           schema:

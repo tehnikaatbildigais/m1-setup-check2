@@ -585,7 +585,7 @@ def test_root_redirects_to_crm(client) -> None:
 
 
 # 43
-def test_contract_describes_exactly_the_crm_routes(tmp_path) -> None:
+def test_contract_describes_exactly_the_crm_routes() -> None:
     import yaml
     from fastapi.routing import APIRoute
 
