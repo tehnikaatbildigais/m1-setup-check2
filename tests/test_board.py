@@ -63,7 +63,7 @@ def test_topbar_search_and_add_menu(client) -> None:
     page = client.get("/organizacijas").text
     assert '<p class="section-title">Organizācijas</p>' in page
     assert 'role="search"' in page and 'aria-label="Meklēt"' in page
-    menu = page.split('<details class="add-menu">')[1].split("</details>")[0]
+    menu = page.split('<details class="add-menu" data-menu>')[1].split("</details>")[0]
     assert 'href="/organizacijas/jauna"' in menu and 'href="/uzdevumi/jauns"' in menu
 
 

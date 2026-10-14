@@ -28,8 +28,8 @@
   function refreshCounts() {
     const columns = [...board.querySelectorAll(".board-column")];
     const stats = columns.map((column) => {
-      const cards = column.querySelectorAll(".task-card");
-      const late = column.querySelectorAll('.task-card[data-late="1"]').length;
+      const cards = column.querySelectorAll(".task-card:not([hidden])");
+      const late = column.querySelectorAll('.task-card[data-late="1"]:not([hidden])').length;
       return { column, open: cards.length, late };
     });
     const busiest = Math.max(1, ...stats.map((s) => s.open));
@@ -67,21 +67,44 @@
     }
     const reasons = { 403: "Nav tiesību mainīt izpildītāju", 404: "Uzdevums nav atrasts" };
     let message = reasons[response.status] || (response.ok ? "Sesija beigusies, atver sākumlapu" : "Servera kļūda");
+    let code = "";
     if (isJson) {
       try {
         const payload = await response.json();
         if (payload.error?.message) message = payload.error.message;
+        code = payload.error?.code || "";
       } catch { /* bojāts JSON */ }
     }
-    return { ok: false, message };
+    return { ok: false, message, code };
   }
 
   // Kopīgā darbība vilkšanai un formai: optimistiski pārvieto, kļūdas gadījumā atgriež.
   async function reassign(card, employeeId, { focusAfter } = {}) {
     const fromColumn = columnOf(card);
-    if (fromColumn.dataset.employee === String(employeeId)) return; // CR-6 #22
-    const toColumn = columnFor(employeeId);
     const title = card.querySelector("h3").textContent;
+    if (fromColumn.dataset.employee === String(employeeId)) {
+      // CR-6 #22: nomešana tajā pašā kolonnā ir klusa; formas lietotājam dod atbildi.
+      if (focusAfter) announce(`Uzdevums „${title}” jau ir šim darbiniekam.`);
+      return;
+    }
+    // Kamēr iepriekšējā pārvietošana nav beigusies, jaunu nesāk (citādi atgriešana
+    // pēc vecas kļūdas var novietot kartīti kolonnā, kas neatbilst serverim).
+    if (card.dataset.pending) {
+      announce(`Uzdevums „${title}” vēl tiek nodots. Mēģini pēc brīža.`);
+      return;
+    }
+    card.dataset.pending = "1";
+    card.setAttribute("aria-busy", "true");
+    try {
+      await moveAndSave(card, fromColumn, employeeId, title, focusAfter);
+    } finally {
+      delete card.dataset.pending;
+      card.removeAttribute("aria-busy");
+    }
+  }
+
+  async function moveAndSave(card, fromColumn, employeeId, title, focusAfter) {
+    const toColumn = columnFor(employeeId);
     const select = card.querySelector("select");
     // Iepriekšējais izpildītājs ir kolonnas darbinieks (forma jau var rādīt jauno izvēli).
     const previous = fromColumn.dataset.employee;
@@ -91,6 +114,14 @@
     refreshCounts();
 
     const result = await sendReassign(card, employeeId);
+    if (!result.ok && result.code === "TASK_DONE") {
+      // Uzdevums jau izpildīts citur: kartīte vairs nepieder tāfelei.
+      card.remove();
+      refreshCounts();
+      announce(`Uzdevums „${title}” jau ir izpildīts, tāpēc tas noņemts no tāfeles.`);
+      if (focusAfter) board.focus();
+      return;
+    }
     if (!result.ok) {
       card.hidden = false;
       placeCard(card, fromColumn);

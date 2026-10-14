@@ -259,3 +259,50 @@ def test_without_javascript_everything_still_works(browser, base_url) -> None:
     page.wait_for_url("**/uzdevumi/sadale?nodots=6*")
     assert "Uzdevums nodots: Anna Kalniņa" in page.content()
     context.close()
+
+
+# --- Audits 2026-10-14 ----------------------------------------------------------------
+
+def test_mobile_nav_visible_when_crm_js_fails(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 1, viewport={"width": 375, "height": 800})
+    page.route("**/static/crm.js", lambda route: route.abort())
+    page.goto(base_url + "/organizacijas")
+    assert page.locator("#main-nav").is_visible()
+    assert not page.locator(".menu-toggle").is_visible()
+    page.close()
+
+
+def test_add_menu_closes_when_focus_leaves(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 1)
+    page.goto(base_url + "/organizacijas")
+    page.focus(".add-menu summary")
+    page.keyboard.press("Enter")
+    page.wait_for_function("document.activeElement.getAttribute('href') === '/organizacijas/jauna'")
+    page.keyboard.press("Tab")
+    page.keyboard.press("Tab")
+    page.wait_for_function("!document.querySelector('.add-menu').open")
+    page.close()
+
+
+def test_add_menu_stays_on_screen_on_mobile(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 1, viewport={"width": 320, "height": 800})
+    page.goto(base_url + "/organizacijas")
+    page.click(".add-menu summary")
+    box = page.locator(".menu-list").bounding_box()
+    assert box["x"] >= 0 and box["x"] + box["width"] <= 320
+    page.close()
+
+
+def test_board_removes_card_of_task_done_elsewhere(browser, base_url) -> None:
+    page = _page_as(browser, base_url, 23)
+    page.goto(base_url + "/uzdevumi/sadale")
+    task_id = page.locator(".task-card").last.get_attribute("data-task")
+    # Uzdevumu atzīmē kā izpildītu citā „cilnē” (tieši serverim).
+    page.request.post(f"{base_url}/uzdevumi/{task_id}/izpildits")
+    current = page.input_value(f"#reassign-{task_id}")
+    other = "1" if current != "1" else "2"
+    page.select_option(f"#reassign-{task_id}", other)
+    page.locator(f"#uzdevums-{task_id} form.reassign button").click()
+    page.wait_for_function("document.getElementById('live').textContent.includes('jau ir izpildīts')")
+    assert page.locator(f"#uzdevums-{task_id}").count() == 0
+    page.close()

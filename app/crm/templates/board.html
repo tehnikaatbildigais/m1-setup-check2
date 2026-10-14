@@ -40,10 +40,10 @@
   {% for col in columns %}
   {% set person = col.employee %}
   {% set open_count = col.cards | length %}
-  <section class="board-column" data-employee="{{ person.id }}" data-name="{{ person.name }}" aria-labelledby="col-title-{{ person.id }}">
+  <section class="board-column" data-employee="{{ person.id }}" aria-labelledby="col-title-{{ person.id }}">
     <div class="column-head">
       <h2 id="col-title-{{ person.id }}">{{ person.name }}</h2>
-      <p class="column-count" data-count>Atvērti: <span data-open>{{ open_count }}</span>, <span class="{{ 'late' if col.late }}" data-late-wrap>kavēti: <span data-late>{{ col.late }}</span></span></p>
+      <p class="column-count">Atvērti: <span data-open>{{ open_count }}</span>, <span class="{{ 'late' if col.late }}" data-late-wrap>kavēti: <span data-late>{{ col.late }}</span></span></p>
       <div class="load-bar" aria-hidden="true" data-load>
         <span class="load-late" style="width: {{ (col.late / busiest * 100) | round(1) }}%"></span>
         <span class="load-open" style="width: {{ ((open_count - col.late) / busiest * 100) | round(1) }}%"></span>
@@ -65,7 +65,7 @@
           <select id="reassign-{{ t.id }}" name="assignee_id">
             {% for e in employees %}<option value="{{ e.id }}"{% if e.id == t.assignee_id %} selected{% endif %}>{{ e.name }}</option>{% endfor %}
           </select>
-          <button type="submit" class="secondary">Nodot<span class="visually-hidden"> citam darbiniekam</span></button>
+          <button type="submit" class="secondary">Nodot<span class="visually-hidden"> citam darbiniekam: {{ t.title }}</span></button>
         </form>
       </li>
       {% endfor %}

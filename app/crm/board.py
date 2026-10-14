@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from ..errors import wants_json
+from ..errors import ApiError, wants_json
 from .web import crm_db, current_employee, get_or_404, is_manager, log_access, render, require, today
 
 router = APIRouter(include_in_schema=False)
@@ -91,6 +91,9 @@ async def reassign(request: Request, task_id: int):
         if target is None:
             raise HTTPException(400, "Izvēlies darbinieku no saraksta")
         if task["done_on"] is not None:
+            # JSON klientam atsevišķs kods, lai tāfele var noņemt novecojušo kartīti.
+            if wants_json(request):
+                raise ApiError(400, "TASK_DONE", "Uzdevums jau ir izpildīts")
             raise HTTPException(400, "Uzdevums jau ir izpildīts")
         changed = task["assignee_id"] != target["id"]
         if changed:

@@ -17,11 +17,12 @@
 {% set items = [("/kopsavilkums", "Kopsavilkums", "kopsavilkums"), ("/uzdevumi", "Mani uzdevumi", "uzdevumi"), ("/organizacijas", "Organizācijas", "organizacijas"), ("/pieprasijumi", "Pieprasījumi", "pieprasijumi")] %}
 {% if is_manager %}{% set items = items + [("/uzdevumi/sadale", "Uzdevumu sadale", "sadale"), ("/parskats", "Pārskats", "parskats")] %}{% endif %}
 {% if is_admin %}{% set items = items + [("/admin/lomas", "Administrēšana", "admin")] %}{% endif %}
-{% set ns = namespace(current="", section="Ezermalas CRM") %}
+{# Aktīvā sadaļa: garākais sakrītošais prefikss; /kontakti pieder Organizācijām. #}
+{% set ns = namespace(prefix="", href="", section="Ezermalas CRM") %}
 {% for href, label, _ in items %}
   {% set prefix = "/admin" if href.startswith("/admin") else href %}
   {% if path == prefix or path.startswith(prefix ~ "/") or (prefix == "/organizacijas" and path.startswith("/kontakti")) %}
-    {% if not ns.current or prefix | length > ns.current | length %}{% set ns.current = prefix %}{% set ns.section = label %}{% endif %}
+    {% if prefix | length > ns.prefix | length %}{% set ns.prefix = prefix %}{% set ns.href = href %}{% set ns.section = label %}{% endif %}
   {% endif %}
 {% endfor %}
 <aside class="sidebar">
@@ -32,13 +33,14 @@
   <nav class="main-nav" id="main-nav" aria-label="Galvenā navigācija">
     <ul>
       {% for href, label, ico in items %}
-      {% set prefix = "/admin" if href.startswith("/admin") else href %}
-      <li><a href="{{ href }}"{% if prefix == ns.current %} aria-current="page"{% endif %}>{{ icon(ico) }}<span>{{ label }}</span></a></li>
+      <li><a href="{{ href }}"{% if href == ns.href %} aria-current="page"{% endif %}>{{ icon(ico) }}<span>{{ label }}</span></a></li>
       {% endfor %}
     </ul>
   </nav>
 </aside>
+{% endif %}
 <div class="workspace">
+{% if employee %}
 <header class="topbar">
   <p class="section-title">{{ ns.section }}</p>
   <form class="search" role="search" action="/meklet" method="get">
@@ -46,7 +48,7 @@
     <input id="global-q" name="q" type="search" value="{{ q | default('') }}" placeholder="Meklēt organizācijas, kontaktus, pieprasījumus">
     <button type="submit" class="icon-button" aria-label="Meklēt">{{ icon("search") }}</button>
   </form>
-  <details class="add-menu">
+  <details class="add-menu" data-menu>
     <summary class="button">{{ icon("plus") }}<span>Pievienot</span></summary>
     <ul class="menu-list">
       <li><a href="/organizacijas/jauna">Organizācija</a></li>
@@ -56,7 +58,6 @@
   <p class="who">{{ icon("user") }}<span><strong>{{ employee.name }}</strong> <span class="role">{{ ROLES[employee.role] }}</span></span> <a href="/sakums">Mainīt darbinieku</a></p>
 </header>
 {% else %}
-<div class="workspace">
 <header class="topbar bare-top">
   <a class="brand" href="/sakums"><span class="brand-mark" aria-hidden="true"></span>Ezermalas CRM</a>
 </header>
