@@ -158,7 +158,7 @@ def my_tasks(request: Request):
 def _task_targets(conn):
     orgs = conn.execute("SELECT id, name FROM organizations ORDER BY name").fetchall()
     requests = conn.execute(
-        "SELECT r.id, r.title, o.name AS org_name FROM requests r"
+        "SELECT r.id, r.title, r.organization_id, o.name AS org_name FROM requests r"
         " JOIN organizations o ON o.id = r.organization_id"
         " WHERE r.status != 'atbildets' ORDER BY o.name, r.title"
     ).fetchall()
@@ -199,6 +199,10 @@ async def task_create(request: Request):
         form.error("request_id", "Izvēlies pieprasījumu no saraksta.")
     if not org_id and not request_id:
         form.error("organization_id", "Uzdevumam jābūt saistītam ar organizāciju vai pieprasījumu.")
+    if org_id and request_id and "request_id" not in form.errors:
+        request_org = next(str(r["organization_id"]) for r in requests if str(r["id"]) == request_id)
+        if request_org != org_id:
+            form.error("request_id", "Pieprasījums pieder citai organizācijai. Izvēlies tās organizācijas pieprasījumu vai atstāj vienu no laukiem tukšu.")
     if not form.ok:
         return render(request, "task_form.html", {
             "employee": employee, "orgs": orgs, "requests": requests, "employees": employees,
@@ -225,8 +229,13 @@ async def task_done(request: Request, task_id: int):
     with crm_db(request).transaction() as conn:
         task = get_or_404(conn, "SELECT * FROM tasks WHERE id = ?", task_id)
         require(task["assignee_id"] == employee["id"] or is_manager(employee))
-        conn.execute("UPDATE tasks SET done_on = ? WHERE id = ?",
-                     (today(request).isoformat(), task_id))
-        log_access(conn, employee["id"], "mainīja", "uzdevums", task_id, task["organization_id"])
+        # Atkārtota iesniegšana (dubultklikšķis, vecā cilne) nemaina sākotnējo izpildes datumu.
+        if task["done_on"] is None:
+            conn.execute("UPDATE tasks SET done_on = ? WHERE id = ?",
+                         (today(request).isoformat(), task_id))
+            organization = task["organization_id"] or conn.execute(
+                "SELECT organization_id FROM requests WHERE id = ?", (task["request_id"],)
+            ).fetchone()[0]
+            log_access(conn, employee["id"], "mainīja", "uzdevums", task_id, organization)
     page = return_to if return_to in TASK_RETURN_PAGES else "/uzdevumi"
     return RedirectResponse(f"{page}?izpildits=1", status_code=303)

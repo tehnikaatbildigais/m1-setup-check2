@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from ..errors import wants_json
 from .web import crm_db, current_employee, get_or_404, is_manager, log_access, render, require, today
 
 router = APIRouter(include_in_schema=False)
@@ -14,10 +15,6 @@ def _manager(request: Request):
     employee = current_employee(request)
     require(is_manager(employee))
     return employee
-
-
-def _wants_json(request: Request) -> bool:
-    return "application/json" in request.headers.get("accept", "")
 
 
 @router.get("/uzdevumi/sadale")
@@ -32,9 +29,9 @@ def board(request: Request, nodots: str = "", saglabats: str = ""):
             " LEFT JOIN requests r ON r.id = t.request_id"
             " WHERE t.done_on IS NULL ORDER BY t.due, t.id"
         ).fetchall()
-        saved = [r[0] for r in conn.execute(
+        saved = {r[0] for r in conn.execute(
             "SELECT employee_id FROM board_columns WHERE manager_id = ?", (employee["id"],)
-        )]
+        )}
         moved = None
         if nodots.isdigit():
             moved = conn.execute(
@@ -46,14 +43,14 @@ def board(request: Request, nodots: str = "", saglabats: str = ""):
     for task in tasks:
         by_employee.setdefault(task["assignee_id"], []).append(task)
     if saved:
-        shown = [e for e in employees if e["id"] in set(saved)]
+        shown = [e for e in employees if e["id"] in saved]
     else:
         shown = [e for e in employees if e["id"] in by_employee]
 
     columns = []
     for person in shown:
-        cards = sorted(by_employee.get(person["id"], []),
-                       key=lambda t: (t["due"] >= day, t["due"], t["id"]))
+        # SQL kārto pēc termiņa, tāpēc kavētie (termiņš < šodiena) jau ir augšā.
+        cards = by_employee.get(person["id"], [])
         late = sum(1 for t in cards if t["due"] < day)
         columns.append({"employee": person, "cards": cards, "late": late})
     busiest = max((len(c["cards"]) for c in columns), default=0) or 1
@@ -95,14 +92,16 @@ async def reassign(request: Request, task_id: int):
             raise HTTPException(400, "Izvēlies darbinieku no saraksta")
         if task["done_on"] is not None:
             raise HTTPException(400, "Uzdevums jau ir izpildīts")
-        if task["assignee_id"] != target["id"]:
+        changed = task["assignee_id"] != target["id"]
+        if changed:
             conn.execute("UPDATE tasks SET assignee_id = ? WHERE id = ?", (target["id"], task_id))
             organization = task["organization_id"] or conn.execute(
                 "SELECT organization_id FROM requests WHERE id = ?", (task["request_id"],)
             ).fetchone()[0]
             log_access(conn, employee["id"], "mainīja", "uzdevums", task_id, organization)
-    if _wants_json(request):
+    if wants_json(request):
         return JSONResponse({"id": task_id, "assignee_id": target["id"],
                              "assignee_name": target["name"]})
-    return RedirectResponse(f"/uzdevumi/sadale?nodots={task_id}#uzdevums-{task_id}",
-                            status_code=303)
+    # Paziņojums „Uzdevums nodots” tikai tad, ja izpildītājs tiešām mainījās.
+    query = f"?nodots={task_id}" if changed else ""
+    return RedirectResponse(f"/uzdevumi/sadale{query}#uzdevums-{task_id}", status_code=303)

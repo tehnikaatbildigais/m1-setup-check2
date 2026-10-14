@@ -60,13 +60,19 @@
     } catch {
       return { ok: false, message: "Neizdevās sazināties ar serveri" };
     }
-    if (response.ok) return { ok: true, data: await response.json() };
+    const isJson = (response.headers.get("content-type") || "").includes("application/json");
+    // Ne-JSON atbilde (piem., pāradresācija uz sākumlapu) nozīmē, ka nekas netika saglabāts.
+    if (response.ok && isJson && !response.redirected) {
+      return { ok: true, data: await response.json() };
+    }
     const reasons = { 403: "Nav tiesību mainīt izpildītāju", 404: "Uzdevums nav atrasts" };
-    let message = reasons[response.status] || "Servera kļūda";
-    try {
-      const payload = await response.json();
-      if (response.status === 400 && payload.error?.message) message = payload.error.message;
-    } catch { /* atbilde nav JSON */ }
+    let message = reasons[response.status] || (response.ok ? "Sesija beigusies, atver sākumlapu" : "Servera kļūda");
+    if (isJson) {
+      try {
+        const payload = await response.json();
+        if (payload.error?.message) message = payload.error.message;
+      } catch { /* bojāts JSON */ }
+    }
     return { ok: false, message };
   }
 

@@ -179,6 +179,11 @@ def _shift_years(day: date, years: int) -> date:
         return day.replace(year=day.year + years, day=28)
 
 
+def _day_from(today: date):
+    """Sākumdatu datumi ir relatīvi pret `today`: day(-3) = pirms 3 dienām (ISO)."""
+    return lambda offset: (today + timedelta(days=offset)).isoformat()
+
+
 def retention_cutoff(today: date) -> date:
     return _shift_years(today, -RETENTION_YEARS)
 
@@ -188,8 +193,7 @@ def seed(conn: sqlite3.Connection, today: date) -> None:
     if conn.execute("SELECT 1 FROM employees LIMIT 1").fetchone():
         return
 
-    def day(offset: int) -> str:
-        return (today + timedelta(days=offset)).isoformat()
+    day = _day_from(today)
 
     conn.executemany("INSERT INTO employees (name, role) VALUES (?, ?)", EMPLOYEES)
     conn.executemany(
@@ -212,19 +216,20 @@ def seed(conn: sqlite3.Connection, today: date) -> None:
             ),
         )
 
-    retention_contacts = {8, 14}
     for index in range(30):
         org_id = index % 10 + 1
         kind, summary, next_step = SUMMARIES[index % len(SUMMARIES)]
         responsible = ORGANIZATIONS[org_id - 1][3]
         author = responsible if index % 3 else (index % 22) + 1
+        if author == IDLE_EMPLOYEE_ID:  # darbinieks 22 paliek bez darba (F9 tukšie bloki)
+            author = responsible
         cursor = conn.execute(
             "INSERT INTO interactions (organization_id, author_id, kind, date, summary,"
             " next_step) VALUES (?, ?, ?, ?, ?, ?)",
             (org_id, author, kind, day(-(index * 4 + 1)), summary, next_step),
         )
         contact_id = (org_id - 1) * 2 + 1 + index % 2
-        if contact_id not in retention_contacts:
+        if contact_id not in RETENTION_CONTACT_IDS:
             conn.execute(
                 "INSERT INTO interaction_participants (interaction_id, contact_id) VALUES (?, ?)",
                 (cursor.lastrowid, contact_id),
@@ -331,8 +336,7 @@ def _seed_extra(conn: sqlite3.Connection, today: date) -> None:
 
     rng = random.Random(5)
 
-    def day(offset: int) -> str:
-        return (today + timedelta(days=offset)).isoformat()
+    day = _day_from(today)
 
     responsible = {i + 1: org[3] for i, org in enumerate(ORGANIZATIONS)}
     authors = [i for i in range(1, len(EMPLOYEES) + 1) if i != IDLE_EMPLOYEE_ID]

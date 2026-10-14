@@ -16,6 +16,14 @@ from .web import (
 router = APIRouter(include_in_schema=False)
 
 ANONYMOUS = "Dzēsta kontaktpersona"
+# N2: brīvā teksta lauki, kuros var būt minēts kontaktpersonas vārds.
+ANONYMIZED_TEXT_COLUMNS = (
+    ("interactions", "summary"),
+    ("interactions", "next_step"),
+    ("requests", "title"),
+    ("requests", "description"),
+    ("tasks", "title"),
+)
 
 
 def _see_other(url: str) -> RedirectResponse:
@@ -288,12 +296,12 @@ def contact_delete(request: Request, contact_id: int):
     require(is_admin(employee))
     with crm_db(request).transaction() as conn:
         contact, org = _contact_with_org(conn, contact_id)
-        # Vārds var būt minēts arī brīvajā tekstā; to aizstāj ar anonīmu apzīmējumu.
-        for column in ("summary", "next_step"):
+        # Vārds var būt minēts brīvajā tekstā jebkurā ierakstā (arī citu organizāciju);
+        # to aizstāj ar anonīmu apzīmējumu. Locījumus („Aijai Mežulei”) tā neatrod.
+        for table, column in ANONYMIZED_TEXT_COLUMNS:
             conn.execute(
-                f"UPDATE interactions SET {column} = replace({column}, ?, ?)"
-                " WHERE organization_id = ?",
-                (contact["name"], ANONYMOUS, org["id"]),
+                f"UPDATE {table} SET {column} = replace({column}, ?, ?)",
+                (contact["name"], ANONYMOUS),
             )
         conn.execute(
             "UPDATE interaction_participants SET contact_id = NULL WHERE contact_id = ?",
@@ -351,7 +359,7 @@ async def interaction_create(request: Request, org_id: int):
         form.values["next_step"] = str(data.get("next_step", ""))
         form.errors.pop("kind", None)
         form.errors.pop("date", None)
-        if not notes:
+        if not notes or "notes" in form.errors:
             form.error("notes", "Ievadi piezīmes, no kurām veidot kopsavilkumu.")
             return render(request, "interaction_form.html", _interaction_context(
                 request, employee, org, contacts, form.values, form.errors), status=400)
@@ -367,6 +375,12 @@ async def interaction_create(request: Request, org_id: int):
         return render(request, "interaction_form.html", _interaction_context(
             request, employee, org, contacts, form.values, form.errors), status=400)
     with crm_db(request).transaction() as conn:
+        # Tiesības un dalībniekus pārbauda vēlreiz tajā pašā transakcijā, kurā saglabā:
+        # starp formas nolasīšanu un saglabāšanu kontaktu var dzēst vai atbildīgo mainīt.
+        _editable_org(conn, employee, org_id)
+        existing = {str(r[0]) for r in conn.execute(
+            "SELECT id FROM contacts WHERE organization_id = ?", (org_id,))}
+        participants = [p for p in participants if p in existing]
         interaction_id = conn.execute(
             "INSERT INTO interactions (organization_id, author_id, kind, date, summary, next_step,"
             " ai_generated, approved_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

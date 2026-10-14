@@ -56,7 +56,8 @@ def dashboard(request: Request):
     day = today(request)
     today_iso = day.isoformat()
     soon = (day + timedelta(days=DASHBOARD_DAYS)).isoformat()
-    week_ago = (day - timedelta(days=DASHBOARD_DAYS)).isoformat()
+    # „Pēdējās 7 dienas” = šodiena un 6 iepriekšējās dienas.
+    week_ago = (day - timedelta(days=DASHBOARD_DAYS - 1)).isoformat()
     with crm_db(request).connect() as conn:
         tasks = today_tasks(conn, employee["id"], today_iso)
         own_orgs = conn.execute(
@@ -99,7 +100,7 @@ def dashboard(request: Request):
             }
         expired = None
         if admin:
-            expired = len(expired_contacts(conn, schema.retention_cutoff(day).isoformat()))
+            expired = count_expired_contacts(conn, schema.retention_cutoff(day).isoformat())
     return render(request, "dashboard.html", {
         "employee": employee, "tasks": tasks, "day": today_iso,
         "late": [r for r in my_requests if r["deadline"] < today_iso],
@@ -236,17 +237,28 @@ async def admin_set_role(request: Request, employee_id: int):
     return RedirectResponse(f"/admin/lomas?saglabats={employee_id}", status_code=303)
 
 
+LAST_CONTACT_SQL = (
+    "max(c.basis_date, COALESCE((SELECT max(i.date) FROM interaction_participants ip"
+    " JOIN interactions i ON i.id = ip.interaction_id WHERE ip.contact_id = c.id), ''))"
+)
+
+
 def expired_contacts(conn, cutoff: str):
     """N2: kontaktpersonas, ar kurām pēdējā saziņa bija pirms `cutoff`."""
-    contacts = conn.execute(
+    return conn.execute(
         "SELECT c.id, c.name, c.organization_id, o.name AS org_name,"
-        " max(c.basis_date, COALESCE((SELECT max(i.date) FROM interaction_participants ip"
-        "   JOIN interactions i ON i.id = ip.interaction_id WHERE ip.contact_id = c.id), ''))"
-        " AS last_contact"
+        f" {LAST_CONTACT_SQL} AS last_contact"
         " FROM contacts c JOIN organizations o ON o.id = c.organization_id"
-        " ORDER BY last_contact"
+        f" WHERE {LAST_CONTACT_SQL} < ? ORDER BY last_contact",
+        (cutoff,),
     ).fetchall()
-    return [c for c in contacts if c["last_contact"] < cutoff]
+
+
+def count_expired_contacts(conn, cutoff: str) -> int:
+    """Tikai skaits kopsavilkumam: personas dati netiek nolasīti."""
+    return conn.execute(
+        f"SELECT COUNT(*) FROM contacts c WHERE {LAST_CONTACT_SQL} < ?", (cutoff,)
+    ).fetchone()[0]
 
 
 @router.get("/admin/glabasana")
