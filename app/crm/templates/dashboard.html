@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% from "_macros.html" import late_tag, status_tag %}
+{% block title %}Kopsavilkums{% endblock %}
+{% block content %}
+<h1>Labdien, {{ employee.name }}!</h1>
+<p class="lead">Šodien: {{ today | lvdate }}</p>
+{% if request.query_params.get('izpildits') %}<p class="notice" role="status">Uzdevums atzīmēts kā izpildīts.</p>{% endif %}
+
+{% if institution %}
+<section aria-labelledby="institution-title" class="first">
+  <h2 id="institution-title">Iestādē</h2>
+  <dl class="stats">
+    <div><dt>Kavēti pieprasījumi</dt><dd>{{ institution.late | length }}</dd></div>
+    <div><dt>Mijiedarbības pēdējās {{ days }} dienās</dt><dd>{{ institution.interactions }}</dd></div>
+    <div><dt>Atvērti uzdevumi</dt><dd>{{ institution.open_tasks }}</dd></div>
+    {% if expired is not none %}
+    <div><dt>Kontaktpersonas ar beigušos glabāšanas termiņu</dt><dd>{{ expired }}{% if expired %} <a href="/admin/glabasana">Skatīt<span class="visually-hidden"> kontaktpersonas ar beigušos glabāšanas termiņu</span></a>{% endif %}</dd></div>
+    {% endif %}
+  </dl>
+</section>
+{% endif %}
+
+<section aria-labelledby="tasks-title">
+  <div class="section-head">
+    <h2 id="tasks-title">Mani uzdevumi šodien</h2>
+    <a href="/uzdevumi">Visi mani uzdevumi</a>
+  </div>
+  {% if tasks %}
+    {% set return_to = "/kopsavilkums" %}{% include "_task_list.html" %}
+  {% else %}
+  <p class="empty">Šodienai uzdevumu nav.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="requests-title">
+  <h2 id="requests-title">Kavētie un tuvojošies pieprasījumi manās organizācijās</h2>
+  {% if late or soon %}
+  <div class="table-wrap" role="region" aria-labelledby="my-req-caption" tabindex="0">
+  <table>
+    <caption id="my-req-caption">Neatbildēti pieprasījumi: {{ late | length }} kavēti, {{ soon | length }} ar termiņu tuvāko {{ days }} dienu laikā</caption>
+    <thead><tr><th scope="col">Temats</th><th scope="col">Organizācija</th><th scope="col">Statuss</th><th scope="col">Termiņš</th></tr></thead>
+    <tbody>
+    {% for r in late + soon %}
+      <tr>
+        <th scope="row"><a href="/pieprasijumi/{{ r.id }}">{{ r.title }}</a></th>
+        <td>{{ r.org_name }}</td>
+        <td>{{ status_tag(r.status) }}</td>
+        <td>{{ r.deadline | lvdate }} {% if r.deadline < day %}{{ late_tag() }}{% else %}<span class="tag tag-soon">Drīz</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif not own_orgs %}
+  <p class="empty">Tu neesi atbildīgais nevienā organizācijā.</p>
+  {% else %}
+  <p class="empty">Manās organizācijās nav kavētu pieprasījumu, un neviena termiņš nebeidzas tuvāko {{ days }} dienu laikā.</p>
+  {% endif %}
+</section>
+
+{% if institution %}
+<section aria-labelledby="late-all-title">
+  <h2 id="late-all-title">Visi kavētie pieprasījumi iestādē</h2>
+  {% if institution.late %}
+  <div class="table-wrap" role="region" aria-labelledby="late-all-caption" tabindex="0">
+  <table>
+    <caption id="late-all-caption">{{ institution.late | length }} kavēti pieprasījumi, vecākais termiņš augšā</caption>
+    <thead><tr><th scope="col">Temats</th><th scope="col">Organizācija</th><th scope="col">Statuss</th><th scope="col">Termiņš</th></tr></thead>
+    <tbody>
+    {% for r in institution.late %}
+      <tr><th scope="row"><a href="/pieprasijumi/{{ r.id }}">{{ r.title }}</a></th><td>{{ r.org_name }}</td><td>{{ status_tag(r.status) }}</td><td>{{ r.deadline | lvdate }} {{ late_tag() }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="empty">Iestādē nav kavētu pieprasījumu.</p>{% endif %}
+</section>
+{% endif %}
+
+<section aria-labelledby="recent-title">
+  <h2 id="recent-title">Pēdējās mijiedarbības{% if institution %} iestādē{% else %} manās organizācijās{% endif %}</h2>
+  <p class="hint">Pēdējās {{ days }} dienās{% if not institution %}, arī tās, ko reģistrēju citās organizācijās{% endif %}.</p>
+  {% if interactions %}
+  <ol class="timeline">
+    {% for i in interactions %}
+    <li>
+      <p class="meta"><strong>{{ KINDS[i.kind] }}</strong>, <time datetime="{{ i.date }}">{{ i.date | lvdate }}</time>, <a href="/organizacijas/{{ i.organization_id }}#mijiedarbibas">{{ i.org_name }}</a>, {{ i.author }}</p>
+      <p>{{ i.summary | truncate(180) }}</p>
+      {% if i.next_step %}<p><strong>Nākamais solis:</strong> {{ i.next_step }}</p>{% endif %}
+      {% if i.ai_generated %}<p class="ai-mark">Ģenerēts ar MI</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty">Pēdējās {{ days }} dienās mijiedarbību nav.</p>
+  {% endif %}
+</section>
+{% endblock %}

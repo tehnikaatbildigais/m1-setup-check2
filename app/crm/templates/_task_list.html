@@ -1,0 +1,17 @@
+{# Sagaida: tasks, day, return_to #}
+<ul class="task-list">
+  {% for t in tasks %}
+  <li>
+    <div>
+      <p class="task-title">{{ t.title }}</p>
+      <p class="meta">{% if t.due < day %}<span class="tag tag-late">Kavēts</span> termiņš bija {{ t.due | lvdate }}{% else %}Termiņš šodien{% endif %}.
+        {% if t.org_name %}<a href="/organizacijas/{{ t.organization_id }}">{{ t.org_name }}</a>{% endif %}
+        {% if t.request_title %}<a href="/pieprasijumi/{{ t.request_id }}">{{ t.request_title }}</a>{% endif %}</p>
+    </div>
+    <form method="post" action="/uzdevumi/{{ t.id }}/izpildits">
+      <input type="hidden" name="return_to" value="{{ return_to }}">
+      <button type="submit" class="secondary">Atzīmēt kā izpildītu<span class="visually-hidden">: {{ t.title }}</span></button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>

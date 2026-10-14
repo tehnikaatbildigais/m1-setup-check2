@@ -11,7 +11,7 @@
 <a class="skip-link" href="#saturs">Pāriet uz saturu</a>
 <header class="site-header">
   <div class="bar">
-    <a class="brand" href="{{ '/uzdevumi' if employee else '/sakums' }}">Ezermalas CRM</a>
+    <a class="brand" href="{{ '/kopsavilkums' if employee else '/sakums' }}">Ezermalas CRM</a>
     {% if employee %}
     <form class="search" role="search" action="/meklet" method="get">
       <label for="global-q" class="visually-hidden">Meklēt organizācijas, kontaktus un pieprasījumus</label>
@@ -24,7 +24,7 @@
   {% if employee %}
   <nav class="main-nav" aria-label="Galvenā navigācija">
     <ul>
-      {% set items = [("/uzdevumi", "Mani uzdevumi"), ("/organizacijas", "Organizācijas"), ("/pieprasijumi", "Pieprasījumi")] %}
+      {% set items = [("/kopsavilkums", "Kopsavilkums"), ("/uzdevumi", "Mani uzdevumi"), ("/organizacijas", "Organizācijas"), ("/pieprasijumi", "Pieprasījumi")] %}
       {% if is_manager %}{% set items = items + [("/parskats", "Pārskats")] %}{% endif %}
       {% if is_admin %}{% set items = items + [("/admin/lomas", "Administrēšana")] %}{% endif %}
       {% for href, label in items %}

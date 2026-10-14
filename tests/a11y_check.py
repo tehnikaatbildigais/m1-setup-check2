@@ -25,9 +25,12 @@ AXE = Path(__file__).parent / "vendor" / "axe.min.js"
 AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 TODAY = date(2026, 10, 14)
 
-# Galvenais ceļš: darbinieka izvēle → uzdevumi → organizācijas → kartīte → formas → pārskats.
+# Galvenais ceļš: darbinieka izvēle → kopsavilkums (F9) → uzdevumi → organizācijas → kartīte → formas → pārskats.
 MAIN_PATH = [
     ("/sakums", None),
+    ("/kopsavilkums", 1),
+    ("/kopsavilkums", 23),
+    ("/kopsavilkums", 25),
     ("/uzdevumi", 1),
     ("/organizacijas", 1),
     ("/organizacijas/1", 1),
@@ -150,7 +153,7 @@ def test_keyboard_only_main_path(browser, base_url) -> None:
     page.keyboard.press("ArrowDown")  # pirmais darbinieks
     page.keyboard.press("Tab")
     page.keyboard.press("Enter")
-    page.wait_for_url("**/uzdevumi")
+    page.wait_for_url("**/kopsavilkums")
     page.goto(base_url + "/organizacijas")
     for _ in range(40):
         page.keyboard.press("Tab")

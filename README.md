@@ -58,7 +58,7 @@ pieprasījumi un uzdevumi. Prasības: `docs/prasibas_arhitektura.md`, pieteikums
 1. `make install` (vai `make install-dev`, lai palaistu arī pieejamības testu).
 2. `make run` un atver <http://localhost:8000/>.
 3. Sākumlapā izvēlies darbinieku. Mācību režīmā paroles nav; loma (darbinieks,
-   vadītājs, administrators) nosaka tiesības.
+   vadītājs, administrators) nosaka tiesības. Pēc izvēles atveras kopsavilkums (F9).
 
 - Dati glabājas `data/crm.db` (ceļu var mainīt ar `CRM_DB_PATH`). Pirmajā palaišanā tiek
   ievietoti izdomāti sākumdati: 25 darbinieki, 10 organizācijas, 20 kontakti,

@@ -132,6 +132,20 @@ prasībām. Pilnas prasības un konceptuālā arhitektūra:
 | 42 | Sākumdati | 25 darbinieki (vismaz 1 vadītājs, 1 administrators), 10 organizācijas, 20 kontakti, 30 mijiedarbības, izdomāti |
 | 43 | `docs/openapi.yaml` | Apraksta CRM maršrutus (text/html); `make lint-contract` jaunajām operācijām bez kļūdām (❓) |
 | 44 | `make test` | Iziet; CR-4 testi turpina iziet |
+### Kopsavilkums (F9)
+
+| # | Ievade | Sagaidāmais rezultāts |
+|---|---|---|
+| 45 | Darbinieks izvēlas sevi sākumlapā | Atveras `/kopsavilkums`; navigācijā pirmais punkts „Kopsavilkums”, „Mani uzdevumi” paliek atsevišķi |
+| 46 | Bloks „Mani uzdevumi šodien” | Neizpildītie uzdevumi ar termiņu šodien vai kavētie (kā #27); kavētie atzīmēti ar tekstu; poga „Atzīmēt kā izpildītu” |
+| 47 | Bloks „Kavētie un tuvojošies pieprasījumi” | Neatbildēti pieprasījumi organizācijās, kurās darbinieks ir atbildīgais: vispirms kavētie (teksts „Kavēts”), tad tie, kuru termiņš ir no šodienas līdz +7 dienām |
+| 48 | Bloks „Pēdējās mijiedarbības” | Pēdējo 7 dienu mijiedarbības organizācijās, kurās darbinieks ir atbildīgais, un tās, ko viņš pats reģistrējis citās organizācijās; jaunākā augšā |
+| 49 | Vadītājs vai administrators | Papildus: iestādes kopskaitļi (kavētie pieprasījumi, mijiedarbības pēdējās 7 dienās, atvērtie uzdevumi); visi kavētie pieprasījumi iestādē; „Pēdējās mijiedarbības” rāda visas organizācijas |
+| 50 | Administrators | Papildus: kontaktpersonu skaits ar beigušos glabāšanas termiņu un saite uz `/admin/glabasana` |
+| 51 | Blokā nav datu | Teksts, kas paskaidro, ka nav ko rādīt (piem., „Šodienai uzdevumu nav”), nevis tukšs bloks |
+| 52 | Darbinieks atver `/kopsavilkums` | Neredz iestādes kopskaitļus, citu organizāciju kavētos pieprasījumus vai glabāšanas termiņu bloku |
+| 53 | Kopsavilkums | Atbilst #35–#37 (orientieri, tastatūra, 320 px, axe bez critical/serious); `/kopsavilkums` ir aprakstīts `docs/openapi.yaml` |
+
 
 ## Precizējumi (clarifications)
 
@@ -156,6 +170,13 @@ prasībām. Pilnas prasības un konceptuālā arhitektūra:
 | Kursa `make lint-contract` prasa visām 4xx/5xx atbildēm JSON `Error` shēmu, bet HTML ekrāni kļūdas rāda HTML. Kā aprakstīt? HTML kļūdu lapas + `application/json` `Error` alternatīva |
 | Ko nozīmē "šodien" F5 sarakstā: tikai šodienas termiņš vai arī kavētie? |  abi, kavētie atzīmēti ar tekstu | |
 | Vai MI-1 drīkst sūtīt mijiedarbību brīvo tekstu (var saturēt personas datus) Anthropic? | Jā, demo versijā tāpat tiks izmantoti tikai sintētiski dati | |
+| F9: kopsavilkuma ekrāna saturs? | Mani uzdevumi šodien; kavētie un tuvojošies pieprasījumi; pēdējās mijiedarbības | <loma>, 2026-10-14 |
+| F9: kas ir „tuvojošies”? | Termiņš 7 dienu laikā | <loma>, 2026-10-14 |
+| F9: cik mijiedarbību rādīt? | Pēdējo 7 dienu | <loma>, 2026-10-14 |
+| F9: darbinieka apjoms? | Savas organizācijas + mijiedarbības, kur ir autors | <loma>, 2026-10-14 |
+| F9: atšķirība pēc lomas? | Vadītājs un administrators: kopskaitļi, visi kavētie, visas mijiedarbības; administrators: arī glabāšanas termiņš | <loma>, 2026-10-14 |
+| F9: kur atrodas? | Jauna lapa pēc darbinieka izvēles; „Mani uzdevumi” paliek | <loma>, 2026-10-14 |
+
 
 ## Ārpus tvēruma (out of scope)
 

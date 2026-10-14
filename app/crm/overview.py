@@ -12,12 +12,13 @@ from .web import (
     EMPLOYEE_COOKIE, Form, NeedsEmployee, crm_db, current_employee, is_admin, is_manager, render, require,
     today,
 )
-from .work import is_overdue
+from .work import is_overdue, today_tasks
 
 router = APIRouter(include_in_schema=False)
 
 SEARCH_LIMIT = 50
 TOP_ORGS = 5
+DASHBOARD_DAYS = 7
 
 
 # --- N3 · sākumlapa (mācību režīms) -----------------------------------------------------
@@ -41,9 +42,71 @@ async def choose_employee(request: Request):
             "employees": employees, "selected": raw,
             "errors": {"employee_id": "Izvēlies darbinieku no saraksta."},
         }, status=400)
-    response = RedirectResponse("/uzdevumi", status_code=303)
+    response = RedirectResponse("/kopsavilkums", status_code=303)
     response.set_cookie(EMPLOYEE_COOKIE, raw, httponly=True, samesite="lax", path="/")
     return response
+
+
+# --- F9 · kopsavilkums ------------------------------------------------------------------
+
+@router.get("/kopsavilkums")
+def dashboard(request: Request):
+    employee = current_employee(request)
+    manager, admin = is_manager(employee), is_admin(employee)
+    day = today(request)
+    today_iso = day.isoformat()
+    soon = (day + timedelta(days=DASHBOARD_DAYS)).isoformat()
+    week_ago = (day - timedelta(days=DASHBOARD_DAYS)).isoformat()
+    with crm_db(request).connect() as conn:
+        tasks = today_tasks(conn, employee["id"], today_iso)
+        own_orgs = conn.execute(
+            "SELECT COUNT(*) FROM organizations WHERE responsible_id = ?", (employee["id"],)
+        ).fetchone()[0]
+        my_requests = conn.execute(
+            "SELECT r.*, o.name AS org_name FROM requests r"
+            " JOIN organizations o ON o.id = r.organization_id"
+            " WHERE o.responsible_id = ? AND r.status != 'atbildets' AND r.deadline <= ?"
+            " ORDER BY r.deadline, r.id",
+            (employee["id"], soon),
+        ).fetchall()
+        # Darbiniekam: savas organizācijas + paša reģistrētās; vadītājam: visas (F9 #48, #49).
+        scope = "" if manager else " AND (o.responsible_id = :me OR i.author_id = :me)"
+        interactions = conn.execute(
+            "SELECT i.*, o.name AS org_name, a.name AS author FROM interactions i"
+            " JOIN organizations o ON o.id = i.organization_id"
+            " JOIN employees a ON a.id = i.author_id"
+            " WHERE i.date BETWEEN :start AND :end" + scope +
+            " ORDER BY i.date DESC, i.id DESC",
+            {"me": employee["id"], "start": week_ago, "end": today_iso},
+        ).fetchall()
+        institution = None
+        if manager:
+            late_all = conn.execute(
+                "SELECT r.*, o.name AS org_name FROM requests r"
+                " JOIN organizations o ON o.id = r.organization_id"
+                " WHERE r.status != 'atbildets' AND r.deadline < ? ORDER BY r.deadline, r.id",
+                (today_iso,),
+            ).fetchall()
+            institution = {
+                "late": late_all,
+                "interactions": conn.execute(
+                    "SELECT COUNT(*) FROM interactions WHERE date BETWEEN ? AND ?",
+                    (week_ago, today_iso),
+                ).fetchone()[0],
+                "open_tasks": conn.execute(
+                    "SELECT COUNT(*) FROM tasks WHERE done_on IS NULL"
+                ).fetchone()[0],
+            }
+        expired = None
+        if admin:
+            expired = len(expired_contacts(conn, schema.retention_cutoff(day).isoformat()))
+    return render(request, "dashboard.html", {
+        "employee": employee, "tasks": tasks, "day": today_iso,
+        "late": [r for r in my_requests if r["deadline"] < today_iso],
+        "soon": [r for r in my_requests if r["deadline"] >= today_iso],
+        "interactions": interactions, "institution": institution, "expired": expired,
+        "days": DASHBOARD_DAYS, "own_orgs": own_orgs,
+    })
 
 
 # --- F6 · meklēšana -------------------------------------------------------------------
@@ -173,20 +236,25 @@ async def admin_set_role(request: Request, employee_id: int):
     return RedirectResponse(f"/admin/lomas?saglabats={employee_id}", status_code=303)
 
 
+def expired_contacts(conn, cutoff: str):
+    """N2: kontaktpersonas, ar kurām pēdējā saziņa bija pirms `cutoff`."""
+    contacts = conn.execute(
+        "SELECT c.id, c.name, c.organization_id, o.name AS org_name,"
+        " max(c.basis_date, COALESCE((SELECT max(i.date) FROM interaction_participants ip"
+        "   JOIN interactions i ON i.id = ip.interaction_id WHERE ip.contact_id = c.id), ''))"
+        " AS last_contact"
+        " FROM contacts c JOIN organizations o ON o.id = c.organization_id"
+        " ORDER BY last_contact"
+    ).fetchall()
+    return [c for c in contacts if c["last_contact"] < cutoff]
+
+
 @router.get("/admin/glabasana")
 def admin_retention(request: Request):
     employee = _admin(request)
     cutoff = schema.retention_cutoff(today(request)).isoformat()
     with crm_db(request).connect() as conn:
-        contacts = conn.execute(
-            "SELECT c.id, c.name, c.organization_id, o.name AS org_name,"
-            " max(c.basis_date, COALESCE((SELECT max(i.date) FROM interaction_participants ip"
-            "   JOIN interactions i ON i.id = ip.interaction_id WHERE ip.contact_id = c.id), ''))"
-            " AS last_contact"
-            " FROM contacts c JOIN organizations o ON o.id = c.organization_id"
-            " ORDER BY last_contact"
-        ).fetchall()
-    expired = [c for c in contacts if c["last_contact"] < cutoff]
+        expired = expired_contacts(conn, cutoff)
     return render(request, "admin_retention.html", {
         "employee": employee, "expired": expired, "cutoff": cutoff,
     })

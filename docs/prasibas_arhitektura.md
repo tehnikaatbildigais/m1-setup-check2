@@ -56,6 +56,13 @@ Piekļūstamības paziņojums​
 
 Lapa /pieklustamiba ar reāliem testa atradumiem; saite kājenē​
 
+F9​
+
+Kopsavilkuma ekrāns​
+
+Pēc ienākšanas: mani uzdevumi šodien, kavētie un tuvojošies (7 d.) pieprasījumi, pēdējo 7 dienu mijiedarbības; vadītājam/administratoram iestādes kopaina​
+
+
 MI-1​
 
 Mijiedarbības kopsavilkums un nākamā soļa ieteikums​

@@ -56,7 +56,7 @@ def test_home_lists_employees_and_stores_choice(client) -> None:
     assert "Anna Kalniņa" in page and "Rūta Saulīte" in page
     assert 'label="Administratori"' in page
     response = client.post("/sakums", data={"employee_id": "1"}, follow_redirects=False)
-    assert response.headers["location"] == "/uzdevumi"
+    assert response.headers["location"] == "/kopsavilkums"
     assert "crm_darbinieks=1" in response.headers["set-cookie"]
 
 
@@ -607,3 +607,120 @@ def test_contract_describes_exactly_the_crm_routes(tmp_path) -> None:
     crm_errors = [e for e in course_rule_errors(document)
                   if not e.startswith(("GET /health", "POST /submissions", "GET /submissions"))]
     assert crm_errors == []
+
+
+# --- Kopsavilkums (F9) ---------------------------------------------------------------
+
+# 45
+def test_dashboard_is_first_nav_item_and_tasks_page_remains(client) -> None:
+    act_as(client, ANNA)
+    page = client.get("/kopsavilkums").text
+    nav = page.split('aria-label="Galvenā navigācija"')[1].split("</nav>")[0]
+    links = re.findall(r'href="([^"]+)"', nav)
+    assert links[:2] == ["/kopsavilkums", "/uzdevumi"]
+    assert 'href="/kopsavilkums" aria-current="page"' in nav
+    assert client.get("/uzdevumi").status_code == 200
+
+
+# 46
+def test_dashboard_tasks_block_and_done_returns_to_dashboard(client) -> None:
+    act_as(client, ANNA)
+    page = client.get("/kopsavilkums").text
+    assert "Nosūtīt semināra programmu" in page
+    assert "Piezvanīt par līguma redakciju" in page and "Kavēts" in page
+    assert "Sagatavot atbildi par fondu pieteikumu" not in page
+    response = client.post("/uzdevumi/1/izpildits", data={"return_to": "/kopsavilkums"},
+                           follow_redirects=False)
+    assert response.headers["location"] == "/kopsavilkums?izpildits=1"
+    assert "Nosūtīt semināra programmu" not in client.get("/kopsavilkums").text
+
+
+def test_done_ignores_foreign_return_target(client) -> None:
+    act_as(client, ANNA)
+    response = client.post("/uzdevumi/1/izpildits", data={"return_to": "https://example.com"},
+                           follow_redirects=False)
+    assert response.headers["location"] == "/uzdevumi?izpildits=1"
+
+
+# 47
+def test_dashboard_requests_overdue_first_then_upcoming(client) -> None:
+    act_as(client, ANNA)
+    page = client.get("/kopsavilkums").text
+    block = page.split('id="requests-title"')[1].split("</section>")[0]
+    overdue = block.index("Konsultācija par ES fondu pieteikumu")  # termiņš −10 d.
+    upcoming = block.index("Prezentācijas materiāli konferencei")  # termiņš +4 d.
+    assert overdue < upcoming
+    assert "Kavēts" in block and "Drīz" in block
+    assert "Pieredzes apmaiņas vizīte" not in block  # atbildēts
+    assert "Datu apmaiņas vienošanās" not in block  # citas organizācijas
+
+
+# 48
+def test_dashboard_interactions_own_orgs_and_authored(client) -> None:
+    act_as(client, INESE)
+    client.post(f"/organizacijas/{JANIS_ORG}/mijiedarbibas/jauna", data={
+        "action": "save", "kind": "zvans", "date": TODAY.isoformat(),
+        "summary": "Vadītājas zvans.",
+    })
+    act_as(client, ANNA)
+    client.post(f"/organizacijas/{ANNA_ORG}/mijiedarbibas/jauna", data={
+        "action": "save", "kind": "zvans", "date": TODAY.isoformat(), "summary": "Annas zvans.",
+    })
+    old = (TODAY - timedelta(days=8)).isoformat()
+    client.post(f"/organizacijas/{ANNA_ORG}/mijiedarbibas/jauna", data={
+        "action": "save", "kind": "zvans", "date": old, "summary": "Sens zvans.",
+    })
+    block = client.get("/kopsavilkums").text.split('id="recent-title"')[1]
+    assert "Annas zvans." in block
+    assert "Sens zvans." not in block
+    assert "Vadītājas zvans." not in block  # cita organizācija, cits autors
+    assert "Pārrunāta sadarbība pavasara semināru ciklā" in block  # seed, Annas org., −1 d.
+
+
+# 49
+def test_manager_dashboard_shows_institution(client) -> None:
+    act_as(client, INESE)
+    page = client.get("/kopsavilkums").text
+    assert 'id="institution-title"' in page
+    assert re.search(r"<dt>Kavēti pieprasījumi</dt><dd>3</dd>", page)
+    assert "Visi kavētie pieprasījumi iestādē" in page
+    assert "Semināra materiālu pieprasījums" in page  # Annas organizācija
+    assert "Pēdējās mijiedarbības iestādē" in page
+    assert "glabāšanas termiņu" not in page  # tikai administratoram
+
+
+# 50
+def test_admin_dashboard_shows_retention(client) -> None:
+    act_as(client, RUTA)
+    page = client.get("/kopsavilkums").text
+    assert re.search(r"beigušos glabāšanas termiņu</dt><dd>2 <a href=\"/admin/glabasana\">", page)
+
+
+# 51
+def test_dashboard_empty_states(client) -> None:
+    act_as(client, 22)  # Normunds Lapiņš: nav organizāciju, uzdevumu, mijiedarbību
+    page = client.get("/kopsavilkums").text
+    assert "Šodienai uzdevumu nav." in page
+    assert "Tu neesi atbildīgais nevienā organizācijā." in page
+    assert "Pēdējās 7 dienās mijiedarbību nav." in page
+
+
+def test_dashboard_no_due_requests_in_own_orgs(client) -> None:
+    act_as(client, 6)  # Edgars Zariņš: atbildīgais org. 9, pieprasījuma termiņš +15 d.
+    page = client.get("/kopsavilkums").text
+    assert "Manās organizācijās nav kavētu pieprasījumu" in page
+
+
+# 52
+def test_employee_dashboard_hides_institution_blocks(client) -> None:
+    act_as(client, ANNA)
+    page = client.get("/kopsavilkums").text
+    assert 'id="institution-title"' not in page
+    assert "Visi kavētie pieprasījumi iestādē" not in page
+    assert "glabāšanas termiņu" not in page
+    assert "Datu apmaiņas vienošanās" not in page
+
+
+def test_dashboard_requires_employee(client) -> None:
+    response = client.get("/kopsavilkums", follow_redirects=False)
+    assert response.headers["location"] == "/sakums"

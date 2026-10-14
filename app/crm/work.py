@@ -125,19 +125,27 @@ async def request_status(request: Request, request_id: int):
 
 # --- F5 · uzdevumi ---------------------------------------------------------------------
 
+TASK_RETURN_PAGES = {"/uzdevumi", "/kopsavilkums"}
+
+
+def today_tasks(conn, employee_id: int, day: str):
+    """F5/F9: neizpildītie uzdevumi ar termiņu šodien vai kavētie."""
+    return conn.execute(
+        "SELECT t.*, o.name AS org_name, r.title AS request_title FROM tasks t"
+        " LEFT JOIN organizations o ON o.id = t.organization_id"
+        " LEFT JOIN requests r ON r.id = t.request_id"
+        " WHERE t.assignee_id = ? AND t.done_on IS NULL AND t.due <= ?"
+        " ORDER BY t.due, t.id",
+        (employee_id, day),
+    ).fetchall()
+
+
 @router.get("/uzdevumi")
 def my_tasks(request: Request):
     employee = current_employee(request)
     day = today(request).isoformat()
     with crm_db(request).connect() as conn:
-        tasks = conn.execute(
-            "SELECT t.*, o.name AS org_name, r.title AS request_title FROM tasks t"
-            " LEFT JOIN organizations o ON o.id = t.organization_id"
-            " LEFT JOIN requests r ON r.id = t.request_id"
-            " WHERE t.assignee_id = ? AND t.done_on IS NULL AND t.due <= ?"
-            " ORDER BY t.due, t.id",
-            (employee["id"], day),
-        ).fetchall()
+        tasks = today_tasks(conn, employee["id"], day)
         upcoming = conn.execute(
             "SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND done_on IS NULL AND due > ?",
             (employee["id"], day),
@@ -211,12 +219,14 @@ async def task_create(request: Request):
 
 
 @router.post("/uzdevumi/{task_id}/izpildits")
-def task_done(request: Request, task_id: int):
+async def task_done(request: Request, task_id: int):
     employee = current_employee(request)
+    return_to = str((await request.form()).get("return_to", ""))
     with crm_db(request).transaction() as conn:
         task = get_or_404(conn, "SELECT * FROM tasks WHERE id = ?", task_id)
         require(task["assignee_id"] == employee["id"] or is_manager(employee))
         conn.execute("UPDATE tasks SET done_on = ? WHERE id = ?",
                      (today(request).isoformat(), task_id))
         log_access(conn, employee["id"], "mainīja", "uzdevums", task_id, task["organization_id"])
-    return RedirectResponse("/uzdevumi?izpildits=1", status_code=303)
+    page = return_to if return_to in TASK_RETURN_PAGES else "/uzdevumi"
+    return RedirectResponse(f"{page}?izpildits=1", status_code=303)

@@ -325,7 +325,7 @@ paths:
       operationId: crmChooseEmployee
       summary: "Izvēlēties darbinieku"
       description: |
-        Saglabā izvēli sīkdatnē `crm_darbinieks` un pāradresē uz `/uzdevumi`.
+        Saglabā izvēli sīkdatnē `crm_darbinieks` un pāradresē uz `/kopsavilkums`.
       requestBody:
         required: true
         content:
@@ -335,6 +335,27 @@ paths:
       responses:
         '303':
           $ref: '#/components/responses/SeeOtherWithCookie'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /kopsavilkums:
+    get:
+      tags: [CRM]
+      operationId: crmDashboard
+      summary: "Kopsavilkums pēc ienākšanas (F9)"
+      description: |
+        Mani uzdevumi šodien; kavētie un tuvojošies (7 dienas) pieprasījumi manās organizācijās; pēdējo 7 dienu mijiedarbības (savas organizācijas un paša reģistrētās). Vadītājam un administratoram arī iestādes kopskaitļi, visi kavētie pieprasījumi un visas mijiedarbības; administratoram arī kontaktu skaits ar beigušos glabāšanas termiņu.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
         '400':
           $ref: '#/components/responses/HtmlBadRequest'
         '404':
@@ -956,7 +977,7 @@ paths:
       operationId: crmTaskDone
       summary: "Atzīmēt uzdevumu kā izpildītu (F5)"
       description: |
-        Izpildītājs, vadītājs vai administrators.
+        Izpildītājs, vadītājs vai administrators. Pāradresē uz `return_to` (`/uzdevumi` vai `/kopsavilkums`).
       parameters:
         - name: 'taskId'
           in: path
@@ -965,6 +986,12 @@ paths:
           schema:
             type: integer
         - $ref: '#/components/parameters/CrmEmployeeCookie'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskDoneForm'
       responses:
         '303':
           $ref: '#/components/responses/SeeOther'
@@ -1480,6 +1507,14 @@ components:
         request_id:
           type: integer
 
+    TaskDoneForm:
+      type: object
+      properties:
+        return_to:
+          type: string
+          enum: [/uzdevumi, /kopsavilkums]
+          description: Lapa pēc atzīmēšanas; cita vērtība → `/uzdevumi`
+
     EmployeeChoiceForm:
       type: object
       required: [employee_id]
@@ -1632,7 +1667,7 @@ components:
           schema:
             type: string
     SeeOtherWithCookie:
-      description: Darbinieks izvēlēts; pāradresācija uz `/uzdevumi`
+      description: Darbinieks izvēlēts; pāradresācija uz `/kopsavilkums`
       headers:
         Location:
           schema:

@@ -237,6 +237,8 @@ def seed(conn: sqlite3.Connection, today: date) -> None:
         (4, "Uzaicinājums uz izstādi", -60, "atbildets", -25),
         (2, "Pieredzes apmaiņas vizīte", -45, "atbildets", -10),
         (5, "Atbalsta vēstule projektam", -8, "darba", None),
+        # F9: termiņš pēc 4 dienām, lai kopsavilkumā būtu „tuvojošies” pieprasījums.
+        (1, "Prezentācijas materiāli konferencei", -26, "darba", None),
     ]
     for org_id, title, created, status, answered in requests:
         conn.execute(
