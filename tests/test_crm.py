@@ -812,3 +812,51 @@ def test_crm_db_path_env_wins_over_neighbour_default(tmp_path, monkeypatch) -> N
     monkeypatch.setenv("CRM_DB_PATH", str(target))
     create_app(tmp_path / "users.db", today=lambda: TODAY)
     assert target.exists() and not (tmp_path / "crm.db").exists()
+
+
+# --- CR-7: piekļūstamības paziņojums un atgriezeniskā saite (Direktīva 2016/2102, MK 445) ---
+
+def test_statement_has_mandatory_sections(client) -> None:
+    page = client.get("/pieklustamiba").text
+    for text in ("MK noteikumiem Nr. 445", "Uz ko attiecas", "daļēji atbilst", "EN 301 549",
+                 "Nepieejamais saturs", "Nesamērīgs slogs", "Paziņojums sagatavots 14.10.2026",
+                 "Metode: pašnovērtējums", "Atgriezeniskā saite", "Sūdzību kārtība", "Tiesībsarga birojs",
+                 'action="/pieklustamiba"'):
+        assert text in page, text
+
+
+def test_feedback_without_employee_is_stored(client, crm_db) -> None:
+    response = client.post("/pieklustamiba", data={"page": "Tāfele", "description": "Nevar nodot uzdevumu",
+                                                  "contact": ""}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/pieklustamiba?nosutits=1#atsauksmes"
+    assert query(crm_db, "SELECT page, description, contact FROM accessibility_feedback") == [
+        ("Tāfele", "Nevar nodot uzdevumu", "")]
+    assert "Paldies, ziņojums nosūtīts" in client.get("/pieklustamiba?nosutits=1").text
+
+
+@pytest.mark.parametrize("data,field", [({"description": ""}, "description"),
+                                        ({"description": "x", "contact": "nav-epasts"}, "contact")])
+def test_feedback_validation(client, data, field) -> None:
+    response = client.post("/pieklustamiba", data=data)
+    assert response.status_code == 400
+    assert f'id="f-{field}-error"' in response.text
+
+
+def test_admin_reviews_and_deletes_feedback(client, crm_db) -> None:
+    client.post("/pieklustamiba", data={"description": "Fokuss nav redzams", "contact": "a@example.com"})
+    act_as(client, ANNA)
+    assert client.get("/admin/atsauksmes").status_code == 403
+    act_as(client, RUTA)
+    page = client.get("/admin/atsauksmes").text
+    assert "Fokuss nav redzams" in page and "a@example.com" in page
+    (fid,), = query(crm_db, "SELECT id FROM accessibility_feedback")
+    assert client.post(f"/admin/atsauksmes/{fid}/dzest", follow_redirects=False).status_code == 303
+    assert query(crm_db, "SELECT COUNT(*) FROM accessibility_feedback") == [(0,)]
+    assert query(crm_db, "SELECT action, entity FROM access_log WHERE entity = 'atsauksme'") == [
+        ("dzēsa", "atsauksme")]
+
+
+@pytest.mark.parametrize("path", ["/login", "/register", "/password-reset", "/password-reset/confirm"])
+def test_cr4_pages_link_to_statement(client, path) -> None:
+    assert 'href="/pieklustamiba"' in client.get(path).text

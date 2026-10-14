@@ -91,7 +91,7 @@ async def _needs_employee(request: Request, __: Exception):
 async def _server_error(request: Request, exc: Exception):
     logger.error("Neapstrādāta kļūda: %s", type(exc).__name__)
     if wants_html(request):
-        return _html_error(request, 500, "Servera kļūda. Mēģini vēlreiz vēlāk.")
+        return _html_error(request, 500, "Servera kļūda. Mēģini vēlreiz vēlāk")
     return error_response(500, "INTERNAL_ERROR", "Internal server error")
 
 

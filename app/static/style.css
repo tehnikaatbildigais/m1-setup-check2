@@ -225,3 +225,11 @@ a:hover { text-decoration-thickness: 2px; }
 
 .links p { margin: 0 0 8px; }
 .links p:last-child { margin-bottom: 0; }
+
+/* Saite uz piekļūstamības paziņojumu katrā lapā (Direktīva 2016/2102, WCAG 3.2.6). */
+.auth-footer {
+  max-width: 23rem;
+  margin: 0 auto;
+  padding: 0 0 32px;
+  font-size: var(--step-small);
+}

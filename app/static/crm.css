@@ -750,3 +750,5 @@ figcaption { margin-top: 8px; color: var(--muted); font-size: var(--step-xs); }
     to { box-shadow: 0 0 0 0 transparent; }
   }
 }
+
+address { font-style: normal; }

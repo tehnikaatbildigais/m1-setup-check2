@@ -70,6 +70,14 @@ CREATE TABLE IF NOT EXISTS board_columns (
     employee_id INTEGER NOT NULL REFERENCES employees(id),
     PRIMARY KEY (manager_id, employee_id)
 );
+-- Piekļūstamības atgriezeniskā saite (Direktīva 2016/2102, MK 445). Saziņa nav obligāta.
+CREATE TABLE IF NOT EXISTS accessibility_feedback (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    page TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL,
+    contact TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS access_log (
     id INTEGER PRIMARY KEY,
     at TEXT NOT NULL,

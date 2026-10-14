@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from . import chart, schema
 from .web import (
-    EMPLOYEE_COOKIE, Form, NeedsEmployee, crm_db, current_employee, is_admin, is_manager, render, require,
-    today,
+    EMAIL_RE, EMPLOYEE_COOKIE, Form, NeedsEmployee, crm_db, current_employee, get_or_404,
+    is_admin, is_manager, log_access, render, require, today,
 )
 from .work import is_overdue, today_tasks
 
@@ -300,10 +300,59 @@ def admin_log(request: Request, darbinieks: str = "", organizacija: str = ""):
 
 # --- F8 · piekļūstamības paziņojums ----------------------------------------------------
 
+def _optional_employee(request: Request):
+    try:
+        return current_employee(request)
+    except NeedsEmployee:
+        return None
+
+
 @router.get("/pieklustamiba")
 def accessibility(request: Request):
-    try:
-        employee = current_employee(request)
-    except NeedsEmployee:
-        employee = None
-    return render(request, "accessibility.html", {"employee": employee})
+    return render(request, "accessibility.html", {
+        "employee": _optional_employee(request), "values": {}, "errors": {},
+        "sent": bool(request.query_params.get("nosutits")),
+    })
+
+
+@router.post("/pieklustamiba")
+async def accessibility_feedback(request: Request):
+    """Atgriezeniskās saites mehānisms: pieejams bez pieteikšanās un bez JavaScript."""
+    form = Form(await request.form())
+    form.text("page", "Lapa vai vieta", required=False, max_len=300)
+    form.text("description", "Problēmas apraksts", max_len=2000)
+    contact = form.text("contact", "E-pasts atbildei", required=False, max_len=200)
+    if contact and "contact" not in form.errors and not EMAIL_RE.fullmatch(contact):
+        form.error("contact", "Ievadi derīgu e-pastu vai atstāj lauku tukšu.")
+    if not form.ok:
+        return render(request, "accessibility.html", {
+            "employee": _optional_employee(request), "values": form.values,
+            "errors": form.errors, "sent": False,
+        }, status=400)
+    with crm_db(request).transaction() as conn:
+        conn.execute(
+            "INSERT INTO accessibility_feedback (created_at, page, description, contact)"
+            " VALUES (?, ?, ?, ?)",
+            (datetime.now().isoformat(timespec="seconds"), form.values["page"],
+             form.values["description"], contact),
+        )
+    return RedirectResponse("/pieklustamiba?nosutits=1#atsauksmes", status_code=303)
+
+
+@router.get("/admin/atsauksmes")
+def admin_feedback(request: Request):
+    employee = _admin(request)
+    with crm_db(request).connect() as conn:
+        items = conn.execute("SELECT * FROM accessibility_feedback ORDER BY id DESC").fetchall()
+    return render(request, "admin_feedback.html", {"employee": employee, "feedback": items})
+
+
+@router.post("/admin/atsauksmes/{feedback_id}/dzest")
+def admin_feedback_delete(request: Request, feedback_id: int):
+    employee = _admin(request)
+    with crm_db(request).transaction() as conn:
+        get_or_404(conn, "SELECT id FROM accessibility_feedback WHERE id = ?", feedback_id)
+        # Pēc apstrādes dzēš (VDAR: saziņas dati netiek glabāti ilgāk, nekā vajag).
+        conn.execute("DELETE FROM accessibility_feedback WHERE id = ?", (feedback_id,))
+        log_access(conn, employee["id"], "dzēsa", "atsauksme", feedback_id, None)
+    return RedirectResponse("/admin/atsauksmes", status_code=303)

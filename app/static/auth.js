@@ -40,6 +40,18 @@ function showFieldError(form, field, issue) {
   form.querySelector(`[name="${CSS.escape(field)}"]`)?.setAttribute("aria-invalid", "true");
 }
 
+// Iesniedzot poga tiek atspējota un zaudē fokusu; pēc atbildes fokuss jānovieto
+// uz to, kas mainījās (WCAG 2.4.3), nevis jāatstāj uz <body>.
+function focusElement(element) {
+  if (!element) return;
+  if (!element.matches("input, select, textarea, button, a[href]")) element.tabIndex = -1;
+  element.focus();
+}
+
+function focusAfterError(form) {
+  focusElement(form.querySelector('[aria-invalid="true"]') || form.querySelector(".form-error:not(:empty)"));
+}
+
 async function submitForm(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -59,6 +71,7 @@ async function submitForm(event) {
   } catch {
     showFormError(form, "Neizdevās sazināties ar serveri. Mēģini vēlreiz.");
     button.disabled = false;
+    focusAfterError(form);
     return;
   }
 
@@ -71,6 +84,7 @@ async function submitForm(event) {
     notice.hidden = false;
     form.reset();
     button.disabled = false;
+    focusElement(notice);
     return;
   }
 
@@ -88,6 +102,7 @@ async function submitForm(event) {
     showFormError(form, "Radās kļūda. Mēģini vēlreiz vēlāk.");
   }
   button.disabled = false;
+  focusAfterError(form);
 }
 
 function showQueryNotices() {

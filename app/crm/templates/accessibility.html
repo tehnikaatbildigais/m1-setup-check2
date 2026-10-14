@@ -1,57 +1,84 @@
 {% extends "base.html" %}
+{% from "_macros.html" import error_summary, field, textarea %}
 {% block title %}Piekļūstamības paziņojums{% endblock %}
 {% block content %}
 <h1>Piekļūstamības paziņojums</h1>
-<p class="lead">Ezermalas CRM mērķis ir atbilst standartam EN 301 549 un WCAG 2.2 AA līmenim. Šis paziņojums apraksta, kas ir pārbaudīts un kas vēl nav.</p>
+<p class="lead">Ezermalas novada pašvaldība (izdomāta, mācību vajadzībām) apņemas nodrošināt savu tīmekļvietņu piekļūstamību saskaņā ar Ministru kabineta 2020. gada 14. jūlija noteikumiem Nr. 445 „Kārtība, kādā iestādes ievieto informāciju internetā”, ar kuriem ieviesta Direktīva (ES) 2016/2102.</p>
+
+<section aria-labelledby="scope" class="first">
+  <h2 id="scope">Uz ko attiecas</h2>
+  <p>Šis paziņojums attiecas uz Ezermalas CRM sistēmu šajā adresē: visām CRM lapām, pieteikšanās, reģistrācijas un paroles atjaunošanas lapām. Sistēma ir iekšēja un paredzēta iestādes darbiniekiem.</p>
+</section>
 
 <section aria-labelledby="status">
   <h2 id="status">Atbilstības statuss</h2>
-  <p><strong>Daļēji atbilst.</strong> Automātiskās pārbaudes neatrada pārkāpumus, bet manuālā pārbaude ar ekrānlasītāju vēl nav veikta.</p>
+  <p><strong>Šī tīmekļvietne daļēji atbilst</strong> standartam EN 301 549 V3.2.1 (WCAG 2.1 AA līmenis), ko prasa MK noteikumi Nr. 445. Papildus tā pārbaudīta pret WCAG 2.2 AA, uz kuru balstās EN 301 549 V4.1.1.</p>
+  <p>Daļēja atbilstība norādīta tāpēc, ka nav veikta pārbaude ar ekrānlasītāju un ar reāliem lietotājiem (sk. „Nepieejamais saturs”). Automātiskajās un tastatūras pārbaudēs neatbilstības netika atrastas.</p>
 </section>
 
-<section aria-labelledby="tested">
-  <h2 id="tested">Kā pārbaudīts</h2>
-  <p>Pārbaudes datums: 14.10.2026 (pēc CR-6 jaunā izskata). Rīki: axe-core 4.10.3 un Playwright ar Chromium (tests/a11y_check.py). Pārbaudīti 20 lapu skati galvenajā ceļā, ieskaitot uzdevumu sadales tāfeli, katrs gaišajā un tumšajā režīmā.</p>
+<section aria-labelledby="nonaccessible">
+  <h2 id="nonaccessible">Nepieejamais saturs</h2>
+  <h3>Neatbilstība normatīvajiem aktiem</h3>
+  <ul>
+    <li>Nav pārbaudīts, vai visas lapas pareizi darbojas ar ekrānlasītājiem (NVDA, JAWS, VoiceOver). Iespējamas neatbilstības WCAG 1.3.1, 4.1.2 un 4.1.3 prasībām, kuras automātiskie rīki pilnībā neatklāj.</li>
+    <li>Uzdevumu sadales tāfelē kartīšu pārvilkšana nav pārbaudīta ar skārienekrānu. Alternatīva: poga „Nodot citam darbiniekam” uz katras kartītes, kas darbojas ar tastatūru, skārienu un bez JavaScript.</li>
+  </ul>
+  <h3>Nesamērīgs slogs</h3>
+  <p>Netiek piemērots.</p>
+  <h3>Saturs, uz kuru neattiecas prasības</h3>
+  <p>Nav.</p>
+  <h3>Zināmi lietojamības ierobežojumi (nav neatbilstība)</h3>
+  <ul>
+    <li>Mijiedarbības formā, nospiežot Enter datuma vai izvēles laukā, tiek nospiesta pirmā poga „Ģenerēt kopsavilkumu”.</li>
+    <li>Datuma lauku attēlojuma formāts atkarīgs no pārlūka valodas iestatījumiem.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="prepared">
+  <h2 id="prepared">Paziņojuma sagatavošana</h2>
+  <p>Paziņojums sagatavots 14.10.2026. Pēdējā pārskatīšana: 14.10.2026. Nākamā pārskatīšana: ne vēlāk kā 14.10.2027.</p>
+  <p>Metode: pašnovērtējums (vienkāršotais izvērtējums saskaņā ar MK noteikumiem Nr. 445 un VARAM vadlīnijām), ko veica izstrādes komanda. Rīki: axe-core 4.10.3 un Playwright ar Chromium (tests/a11y_check.py), kā arī manuāla tastatūras pārbaude.</p>
   <div class="table-wrap" role="region" aria-labelledby="results-caption" tabindex="0">
   <table>
-    <caption id="results-caption">Testu rezultāti</caption>
+    <caption id="results-caption">Pārbaužu rezultāti 14.10.2026</caption>
     <thead><tr><th scope="col">Pārbaude</th><th scope="col">Rezultāts</th></tr></thead>
     <tbody>
-      <tr><th scope="row">axe-core, WCAG 2.0–2.2 A un AA noteikumi</th><td>0 pārkāpumu (nav arī minor vai moderate)</td></tr>
-      <tr><th scope="row">axe-core formā ar kļūdām</th><td>0 pārkāpumu; fokuss pāriet uz kļūdu kopsavilkumu</td></tr>
-      <tr><th scope="row">Krāsu kontrasts, ko axe nevarēja novērtēt (teksta lauki MI formā, diagrammas teksti)</th><td>Izrēķināts manuāli: mazākais kontrasts 5,46:1 (pelēks teksts uz fona), prasība 4,5:1</td></tr>
-      <tr><th scope="row">320 px platums un 200 % mērogs (640 px)</th><td>Nav horizontālās ritināšanas nevienā no 20 lapu skatiem; platas tabulas ritina savā laukā</td></tr>
-      <tr><th scope="row">Uzdevumu sadales tāfele</th><td>Uzdevumu var nodot ar vilkšanu vai ar formu „Nodot citam darbiniekam” uz katras kartītes (WCAG 2.5.7); forma darbojas ar tastatūru un bez JavaScript; fokuss paliek uz kartītes; rezultāts tiek paziņots ekrānlasītājam</td></tr>
-      <tr><th scope="row">Bez JavaScript</th><td>Navigācija, „Pievienot” izvēlne, formas ar kļūdām un uzdevuma nodošana strādā</td></tr>
-      <tr><th scope="row">Tastatūra</th><td>Pirmais Tab fokuss ir „Pāriet uz saturu”; darbinieka izvēle un organizācijas atvēršana izdodas tikai ar tastatūru</td></tr>
+      <tr><th scope="row">axe-core, WCAG 2.0–2.2 A un AA noteikumi, 25 lapu skati (CRM, pieteikšanās lapas, kļūdu lapas), gaišais un tumšais režīms</th><td>0 pārkāpumu</td></tr>
+      <tr><th scope="row">Formas ar kļūdām (CRM un pieteikšanās)</th><td>0 pārkāpumu; fokuss pāriet uz kļūdu kopsavilkumu vai pirmo kļūdaino lauku</td></tr>
+      <tr><th scope="row">Krāsu kontrasts, ko axe nevarēja novērtēt (teksta lauki MI formā, diagrammas teksti)</th><td>Izrēķināts manuāli: mazākais 5,2:1 (prasība 4,5:1)</td></tr>
+      <tr><th scope="row">WCAG 1.4.10: 320 px platums un 200 % mērogs (640 px)</th><td>Nav horizontālās lapas ritināšanas</td></tr>
+      <tr><th scope="row">WCAG 1.4.12: palielinātas teksta atstarpes</th><td>Saturs netiek nogriezts un nepārklājas</td></tr>
+      <tr><th scope="row">Tastatūra (WCAG 2.1.1, 2.1.2, 2.4.3, 2.4.7, 2.4.11)</th><td>Visas funkcijas sasniedzamas; nav tastatūras slazdu; fokuss redzams un netiek aizsegts</td></tr>
+      <tr><th scope="row">Uzdevumu sadales tāfele (WCAG 2.5.7)</th><td>Vilkšanai ir alternatīva „Nodot citam darbiniekam”; rezultāts tiek paziņots ekrānlasītājam</td></tr>
+      <tr><th scope="row">Bez JavaScript</th><td>Navigācija, izvēlnes, formas, kļūdu paziņojumi, uzdevuma nodošana un šī atsauksmju forma darbojas</td></tr>
+      <tr><th scope="row">Konsekventa palīdzība (WCAG 3.2.6)</th><td>Saite uz šo paziņojumu ir katras lapas kājenē</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
-<section aria-labelledby="fixed">
-  <h2 id="fixed">Testēšanā atrastās un novērstās problēmas</h2>
-  <ul>
-    <li>320 px platumā tabulas ar ekrānā neredzamiem tekstiem (piem., „Dzēst” ar kontaktpersonas vārdu) paplašināja visu lapu, un parādījās horizontālā ritināšana. Novērsts 14.10.2026.</li>
-    <li>Pēc MI kopsavilkuma ģenerēšanas fokuss palika lapas sākumā. Tagad fokuss pāriet uz ģenerēto kopsavilkumu.</li>
-    <li>CR-6: uzdevumu sadales tāfelē ekrānā neredzamās etiķetes paplašināja lapu. Novērsts 14.10.2026.</li>
-    <li>CR-6: ja uzdevuma nodošana neizdevās, kartīte atgriezās, bet izvēlnē palika jaunais darbinieks. Novērsts 14.10.2026.</li>
-  </ul>
+<section aria-labelledby="atsauksmes">
+  <h2 id="atsauksmes">Atgriezeniskā saite un kontakti</h2>
+  <p>Ja kāda daļa sistēmas jums nav piekļūstama vai vajag saturu citā formātā, aprakstiet to šajā formā. Atbildīgais: sistēmas administrators; e-pasts <a href="mailto:pieklustamiba@ezermala.example">pieklustamiba@ezermala.example</a> (izdomāts, mācību vajadzībām).</p>
+  {% if sent %}<p class="notice" role="status" tabindex="-1" autofocus>Paldies, ziņojums nosūtīts administratoram.</p>{% endif %}
+  {{ error_summary(errors) }}
+  <form method="post" action="/pieklustamiba" novalidate class="narrow">
+    {{ field("page", "Lapa vai vieta", values, errors, required=False, hint="Piemēram, „Uzdevumu sadale” vai lapas adrese.") }}
+    {{ textarea("description", "Problēmas apraksts", values, errors, hint="Ko mēģinājāt izdarīt un kas neizdevās.") }}
+    {{ field("contact", "E-pasts atbildei", values, errors, type="email", required=False, autocomplete="email", hint="Nav obligāts. Izmantosim tikai atbildei un dzēsīsim pēc ziņojuma apstrādes.") }}
+    <div class="actions"><button type="submit">Nosūtīt ziņojumu</button></div>
+  </form>
 </section>
 
-<section aria-labelledby="known">
-  <h2 id="known">Zināmie ierobežojumi</h2>
-  <ul>
-    <li>Nav veikta pārbaude ar NVDA vai citu ekrānlasītāju, un nav testēts ar reāliem lietotājiem.</li>
-    <li>200 % mērogs pārbaudīts, simulējot 640 px platu logu, nevis ar pārlūka tālummaiņu.</li>
-    <li>Mijiedarbības formā, nospiežot Enter datuma vai izvēles laukā, tiek nospiesta pirmā poga „Ģenerēt kopsavilkumu”, nevis „Saglabāt”.</li>
-    <li>Datuma lauku formāts atkarīgs no pārlūka valodas iestatījumiem.</li>
-    <li>Vilkšana tāfelē nav pārbaudīta ar skārienekrānu, un automātiskajā testā vilkšana uz kolonnu ārpus redzamās daļas neizdevās. Abos gadījumos var izmantot „Nodot citam darbiniekam”.</li>
-  </ul>
-</section>
-
-<section aria-labelledby="feedback">
-  <h2 id="feedback">Atsauksmes</h2>
-  <p>Šī ir mācību sistēma. Ja pamani piekļūstamības problēmu, pieraksti, kurā lapā un ko darīji, un nodod to sistēmas administratoram.</p>
+<section aria-labelledby="enforcement">
+  <h2 id="enforcement">Sūdzību kārtība</h2>
+  <p>Ja uz ziņojumu nav atbildēts saprātīgā termiņā vai atbilde jūs neapmierina, varat vērsties pie Tiesībsarga, kas uzrauga, kā iestādes ievēro piekļūstamības prasības.</p>
+  <address>
+    Tiesībsarga birojs<br>
+    Baznīcas iela 25, Rīga, LV-1010<br>
+    Tālrunis: +371 67686768<br>
+    E-pasts: <a href="mailto:tiesibsargs@tiesibsargs.lv">tiesibsargs@tiesibsargs.lv</a><br>
+    <a href="https://www.tiesibsargs.lv/">www.tiesibsargs.lv</a>
+  </address>
 </section>
 {% endblock %}

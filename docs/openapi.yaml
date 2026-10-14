@@ -1290,14 +1290,95 @@ paths:
     get:
       tags: [CRM]
       operationId: crmAccessibility
-      summary: "Piekļūstamības paziņojums (F8)"
+      summary: "Piekļūstamības paziņojums (F8, CR-7)"
       description: |
-        Pieejams bez darbinieka izvēles.
+        Pieejams bez darbinieka izvēles. Saturs pēc Lēmuma (ES) 2018/1523 parauga:
+        atbilstības statuss, nepieejamais saturs, sagatavošana, atgriezeniskā saite,
+        sūdzību kārtība (Tiesībsargs).
+      parameters:
+        - name: 'nosutits'
+          in: query
+          required: false
+          description: "`1` — rāda apstiprinājumu par nosūtītu ziņojumu"
+          schema:
+            type: string
       responses:
         '200':
           $ref: '#/components/responses/HtmlPage'
         '400':
           $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+    post:
+      tags: [CRM]
+      operationId: crmAccessibilityFeedback
+      summary: "Ziņot par piekļūstamības problēmu (CR-7)"
+      description: |
+        Atgriezeniskās saites mehānisms (Direktīva 2016/2102, MK noteikumi Nr. 445).
+        Pieejams bez darbinieka izvēles un bez JavaScript. Saziņas e-pasts nav obligāts.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccessibilityFeedbackForm'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/atsauksmes:
+    get:
+      tags: [CRM]
+      operationId: crmAdminFeedback
+      summary: "Piekļūstamības atsauksmes (CR-7)"
+      description: |
+        Tikai administrators.
+      parameters:
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '200':
+          $ref: '#/components/responses/HtmlPage'
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
+        '404':
+          $ref: '#/components/responses/HtmlNotFound'
+        '500':
+          $ref: '#/components/responses/HtmlServerError'
+
+  /admin/atsauksmes/{feedbackId}/dzest:
+    post:
+      tags: [CRM]
+      operationId: crmAdminFeedbackDelete
+      summary: "Dzēst apstrādātu atsauksmi (CR-7)"
+      description: |
+        Tikai administrators. Ieraksts piekļuves žurnālā („dzēsa”, atsauksme).
+      parameters:
+        - name: 'feedbackId'
+          in: path
+          required: true
+          description: "Atsauksmes ID"
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/CrmEmployeeCookie'
+      responses:
+        '303':
+          $ref: '#/components/responses/SeeOther'
+        '400':
+          $ref: '#/components/responses/HtmlBadRequest'
+        '403':
+          $ref: '#/components/responses/HtmlForbidden'
         '404':
           $ref: '#/components/responses/HtmlNotFound'
         '500':
@@ -1637,6 +1718,22 @@ components:
           type: integer
         assignee_name:
           type: string
+
+    AccessibilityFeedbackForm:
+      type: object
+      required: [description]
+      properties:
+        page:
+          type: string
+          maxLength: 300
+        description:
+          type: string
+          maxLength: 2000
+        contact:
+          type: string
+          format: email
+          maxLength: 200
+          description: Nav obligāts; tikai atbildei
 
     TaskDoneForm:
       type: object

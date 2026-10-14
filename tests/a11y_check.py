@@ -55,6 +55,11 @@ MAIN_PATH = [
     ("/admin/glabasana", 25),
     ("/admin/zurnals", 25),
     ("/pieklustamiba", None),
+    ("/admin/atsauksmes", 25),
+    ("/login", None),
+    ("/register", None),
+    ("/password-reset", None),
+    ("/password-reset/confirm?token=nav", None),
 ]
 
 
@@ -118,7 +123,9 @@ def _axe(page) -> list[dict]:
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_axe_no_critical_or_serious(browser, base_url, path, employee_id, scheme) -> None:
     page = _page_as(browser, base_url, employee_id, color_scheme=scheme)
-    page.goto(base_url + path)
+    response = page.goto(base_url + path)
+    # Kļūdas lapa arī var būt bez axe pārkāpumiem; pārbaudām, ka testēta īstā lapa.
+    assert response.status == 200, (path, response.status)
     violations = _axe(page)
     page.close()
     blocking = [v for v in violations if v["impact"] in ("critical", "serious")]
@@ -336,3 +343,65 @@ def test_board_removes_card_of_task_done_elsewhere(browser, base_url) -> None:
     page.wait_for_function("document.getElementById('live').textContent.includes('jau ir izpildīts')")
     assert page.locator(f"#uzdevums-{task_id}").count() == 0
     page.close()
+
+
+
+# --- CR-7: atkārtota piekļūstamības pārbaude ------------------------------------------
+
+@pytest.mark.parametrize("path,fill", [
+    ("/register", {"#email": "x@"}),
+    ("/login", {"#login": "neviens", "#password": "nepareiza"}),
+])
+def test_cr4_focus_moves_to_error(browser, base_url, path, fill) -> None:
+    page = browser.new_page()
+    page.goto(base_url + path)
+    for selector, value in fill.items():
+        page.fill(selector, value)
+    page.click("button[type=submit]")
+    page.wait_for_function("document.activeElement !== document.body && document.activeElement.tagName !== 'BUTTON'")
+    focused = page.evaluate("document.activeElement.getAttribute('aria-invalid') || document.activeElement.className")
+    assert focused in ("true", "form-error")
+    page.close()
+
+
+def test_text_spacing_does_not_clip(browser, base_url) -> None:
+    """WCAG 1.4.12: palielinātas atstarpes nenogriež saturu un nerada horizontālu ritināšanu."""
+    spacing = ("*{line-height:1.5!important;letter-spacing:.12em!important;"
+               "word-spacing:.16em!important}p{margin-bottom:2em!important}")
+    for path, employee_id in MAIN_PATH:
+        page = _page_as(browser, base_url, employee_id)
+        page.goto(base_url + path)
+        page.add_style_tag(content=spacing)
+        clipped = page.evaluate("""() => [...document.querySelectorAll('body *')].filter(e => {
+            const cs = getComputedStyle(e);
+            if (cs.display === 'none' || e.classList.contains('visually-hidden')) return false;
+            return /(hidden|clip)/.test(cs.overflowX + cs.overflowY) && e.clientHeight > 0 &&
+                   (e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1);
+        }).map(e => e.tagName + '.' + e.className)""")
+        hscroll = page.evaluate("document.documentElement.scrollWidth > innerWidth")
+        page.close()
+        assert not clipped and not hscroll, (path, clipped)
+
+
+def test_no_keyboard_trap(browser, base_url) -> None:
+    for path, employee_id in [("/kopsavilkums", 23), ("/uzdevumi/sadale", 23), ("/login", None)]:
+        page = _page_as(browser, base_url, employee_id)
+        page.goto(base_url + path)
+        for _ in range(400):
+            page.keyboard.press("Tab")
+            if page.evaluate("document.activeElement.getAttribute('href')") == "/pieklustamiba":
+                break
+        else:
+            pytest.fail(f"{path}: kājenes saite nav sasniedzama ar Tab")
+        page.close()
+
+
+def test_feedback_form_without_javascript(browser, base_url) -> None:
+    context = browser.new_context(java_script_enabled=False)
+    page = context.new_page()
+    page.goto(base_url + "/pieklustamiba")
+    page.fill("#f-description", "Tests bez JS")
+    page.click("form[action='/pieklustamiba'] button[type=submit]")
+    page.wait_for_url("**/pieklustamiba?nosutits=1*")
+    assert "Paldies, ziņojums nosūtīts" in page.content()
+    context.close()
